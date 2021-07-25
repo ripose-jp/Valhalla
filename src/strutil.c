@@ -87,10 +87,7 @@ char *su_url_encode_l(const char *str, size_t len)
             *pstr == '-' ||
             *pstr == '_' ||
             *pstr == '.' ||
-            *pstr == '~' ||
-            *pstr == '/' || // Seperator
-            *pstr == ':' || // Capture
-            *pstr == '*')   // Match
+            *pstr == '~')
         {
             *pbuf++ = *pstr;
         }

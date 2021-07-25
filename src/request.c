@@ -143,10 +143,6 @@ static int request_destructor(vla_request *req)
  */
 static void pop_query_map(vla_request *req, const char *query)
 {
-    if (!req->priv->query_map)
-    {
-        req->priv->query_map = kh_init(str);
-    }
     khash_t(str) *map = req->priv->query_map;
 
     while (*query)
@@ -497,24 +493,30 @@ vla_request *request_new(vla_context *ctx, FCGX_Request *f_req)
     vla_request *req = talloc(ctx, vla_request);
     talloc_set_destructor(req, request_destructor);
     talloc_set_name_const(req, "Request not yet processed");
-
     bzero(req, sizeof(vla_request));
+
     req->priv = talloc(req, vla_request_private);
-    bzero(req->priv, sizeof(vla_request_private));
+    *req->priv = (vla_request_private) {
+        .f_req = f_req,
 
-    req->priv->f_req = f_req;
-    req->priv->req_hdr_map = kh_init(strcase);
+        .req_hdr_map = kh_init(strcase),
+        .query_map = kh_init(str),
+        .req_body = NULL,
+        .req_body_len = 0,
+
+        .res_status = 0,
+        .res_hdr_map = kh_init(strcase),
+        .res_body = sdsempty(),
+
+        .mw_i = 0,
+    };
     request_populate(ctx, req);
-
+    req->priv->info = context_get_route(ctx, req->document_uri, req->method);
+    vla_response_set_status_code(req, 200);
+    
     talloc_set_name(
         req, "Request from %s:%s", req->remote_addr, req->remote_port
     );
-
-    req->priv->info = context_get_route(ctx, req->request_uri, req->method);
-    req->priv->res_hdr_map = kh_init(strcase);
-    req->priv->res_body = sdsempty();
-
-    vla_response_set_status_code(req, 200);
 
     return req;
 }

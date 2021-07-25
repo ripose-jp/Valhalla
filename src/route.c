@@ -225,7 +225,7 @@ static route_node_t *create_route_path(route_node_t *root, const char *route)
 static route_node_t *get_route_node(route_node_t *root, const char *route)
 {
     route_node_t *current = root;
-    while (*route && *route != '?')
+    while (*route)
     {
         khiter_t it = kh_get(cn, current->map, *route);
         if (it == kh_end(current->map))
@@ -310,9 +310,7 @@ int route_add(
     }
 
     /* Get the node for the route. */
-    char *route_enc = su_url_encode(route);
-    route_node_t *node = create_route_path(root, route_enc);
-    talloc_free(route_enc);
+    route_node_t *node = create_route_path(root, route);
     if (node == NULL)
     {
         return 1;

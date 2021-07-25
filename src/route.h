@@ -114,7 +114,7 @@ int route_add(
 
 /**
  * Gets handlers for the route and method.
- * Routes are expected to be URL encoded.
+ * Routes are expected to be URL decoded.
  * 
  * @param root The root of the route tree.
  * 
