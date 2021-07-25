@@ -13,3 +13,6 @@ set(CMAKE_C_STANDARD 99)
 set(CFLAGS "-Wall -Werror")
 
 add_subdirectory(src)
+
+include(CTest)
+add_subdirectory(test)
