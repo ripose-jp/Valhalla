@@ -63,7 +63,6 @@
 #define DOCUMENT_ROOT "DOCUMENT_ROOT="
 #define SERVER_PROTOCOL "SERVER_PROTOCOL="
 #define REQUEST_SCHEME "REQUEST_SCHEME="
-#define HTTPS "HTTPS="
 
 #define GATEWAY_INTERFACE "GATEWAY_INTERFACE="
 #define SERVER_SOFTWARE "SERVER_SOFTWARE="
@@ -457,10 +456,7 @@ static void request_populate(vla_context *ctx, vla_request *req)
         else if (HAS_PREFIX(*str, REQUEST_SCHEME))
         {
             req->request_scheme = val;
-        }
-        else if (HAS_PREFIX(*str, HTTPS))
-        {
-            req->https = strcmp(val, "on") == 0;
+            req->https = strcasecmp(val, "HTTPS") == 0;
         }
         else if (HAS_PREFIX(*str, GATEWAY_INTERFACE))
         {
