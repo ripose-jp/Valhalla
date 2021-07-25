@@ -7,6 +7,17 @@ add_library(
     unity/unity_internals.h
 )
 
+# StrUtil Tests
+
+add_executable(test_strutil strutil.c)
+target_link_libraries(
+    test_strutil
+    libunity
+    ${PROJECT_NAME}
+    ${TALLOC_LIBRARY}
+)
+add_test(test_strutil ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_strutil)
+
 # Route Tree Tests
 
 add_executable(test_routes route.c)
