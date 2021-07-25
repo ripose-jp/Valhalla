@@ -55,11 +55,11 @@ typedef struct route_info_t
 /**
  * Initializes the root of a route tree.
  * 
- * @param ctx The Valhalla context the route tree belongs to.
+ * @param ctx The talloc context this root should belong to.
  * 
  * @return A route tree. 
  */
-route_node_t *route_init_root(vla_context *ctx);
+route_node_t *route_init_root(void *ctx);
 
 /**
  * Initializes a route_info_t.
@@ -83,6 +83,7 @@ route_info_t *route_info_create(
 
 /**
  * Adds a route.
+ * Routes are expected to be URL decoded.
  * 
  * @param root The root node of the route tree.
  * 
@@ -100,7 +101,8 @@ route_info_t *route_info_create(
  * @param ap A va_list containing alternating pointers to vla_middleware_func
  *           and void * arguments. Terminated with a NULL vla_middleware_func.
  * 
- * @return 0 on success, 1 if the route overlaps with another.
+ * @return 0 on success, 1 if the route overlaps with another, -1 if the route
+ *         doesn't start with '/'.
  */
 int route_add(
     route_node_t *root,
@@ -112,6 +114,7 @@ int route_add(
 
 /**
  * Gets handlers for the route and method.
+ * Routes are expected to be URL encoded.
  * 
  * @param root The root of the route tree.
  * 
@@ -119,7 +122,8 @@ int route_add(
  * 
  * @param method The method of the route to get.
  * 
- * @return A route_node_t of the route if it exists, NULL otherwise.
+ * @return The route_info_t of the route and method if it exists, NULL
+ *         otherwise.
  */
 route_info_t *route_get(
     route_node_t *root,

@@ -269,7 +269,8 @@ int vla_free(void *ptr);
  * @param middleware_arg The second argument to a middleware function. Assumed
  *                       to be a void *.
  * 
- * @return 0 if the route was added, 1 if the route overlaps with another.
+ * @return 0 if the route was added, 1 if the route overlaps with another, -1 if
+ *         the route doesn't start with '/'.
  */
 int vla_add_route(
     vla_context *ctx,

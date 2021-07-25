@@ -37,7 +37,7 @@
 #include "containers/khash.h"
 #include "strutil.h"
 
-KHASH_MAP_INIT_INT(cn, route_node_t *)
+KHASH_INIT(cn, char, route_node_t *, 1, kh_int_hash_func, kh_int_hash_equal)
 
 /* Used for easily converting vla_http_method flags into lookups. */
 enum http_method_lookup
@@ -121,7 +121,7 @@ static route_node_t *init_route_node(void *parent, enum node_type type)
     return node;
 }
 
-route_node_t *route_init_root(vla_context *ctx)
+route_node_t *route_init_root(void *ctx)
 {
     return init_route_node(ctx, NODE_EXACT);
 }
@@ -303,6 +303,12 @@ int route_add(
     void *hdlr_arg,
     va_list ap)
 {
+    /* Make sure the route starts with a '/' */
+    if (*route != '/')
+    {
+        return -1;
+    }
+
     /* Get the node for the route. */
     char *route_enc = su_url_encode(route);
     route_node_t *node = create_route_path(root, route_enc);
@@ -313,15 +319,15 @@ int route_add(
     }
 
     /* Make sure the route doesn't already exist. */
-    if (methods | VLA_HTTP_GET     && node->infos[HTTP_GET]     ||
-        methods | VLA_HTTP_HEAD    && node->infos[HTTP_HEAD]    ||
-        methods | VLA_HTTP_POST    && node->infos[HTTP_POST]    ||
-        methods | VLA_HTTP_PUT     && node->infos[HTTP_PUT]     ||
-        methods | VLA_HTTP_DELETE  && node->infos[HTTP_DELETE]  ||
-        methods | VLA_HTTP_CONNECT && node->infos[HTTP_CONNECT] ||
-        methods | VLA_HTTP_OPTIONS && node->infos[HTTP_OPTIONS] ||
-        methods | VLA_HTTP_TRACE   && node->infos[HTTP_TRACE]   ||
-        methods | VLA_HTTP_PATCH   && node->infos[HTTP_PATCH])
+    if (methods & VLA_HTTP_GET     && node->infos[HTTP_GET]     ||
+        methods & VLA_HTTP_HEAD    && node->infos[HTTP_HEAD]    ||
+        methods & VLA_HTTP_POST    && node->infos[HTTP_POST]    ||
+        methods & VLA_HTTP_PUT     && node->infos[HTTP_PUT]     ||
+        methods & VLA_HTTP_DELETE  && node->infos[HTTP_DELETE]  ||
+        methods & VLA_HTTP_CONNECT && node->infos[HTTP_CONNECT] ||
+        methods & VLA_HTTP_OPTIONS && node->infos[HTTP_OPTIONS] ||
+        methods & VLA_HTTP_TRACE   && node->infos[HTTP_TRACE]   ||
+        methods & VLA_HTTP_PATCH   && node->infos[HTTP_PATCH])
     {
         return 1;
     }
@@ -330,23 +336,23 @@ int route_add(
     route_info_t *info = route_info_create(node, hdlr, hdlr_arg, ap);
 
     /* Insert the route info into the tree. */
-    if (methods | VLA_HTTP_GET)
+    if (methods & VLA_HTTP_GET)
         node->infos[HTTP_GET] = info;
-    if (methods | VLA_HTTP_HEAD)
+    if (methods & VLA_HTTP_HEAD)
         node->infos[HTTP_HEAD] = info;
-    if (methods | VLA_HTTP_POST)
+    if (methods & VLA_HTTP_POST)
         node->infos[HTTP_POST] = info;
-    if (methods | VLA_HTTP_PUT)
+    if (methods & VLA_HTTP_PUT)
         node->infos[HTTP_PUT] = info;
-    if (methods | VLA_HTTP_DELETE)
+    if (methods & VLA_HTTP_DELETE)
         node->infos[HTTP_DELETE] = info;
-    if (methods | VLA_HTTP_CONNECT)
+    if (methods & VLA_HTTP_CONNECT)
         node->infos[HTTP_CONNECT] = info;
-    if (methods | VLA_HTTP_OPTIONS)
+    if (methods & VLA_HTTP_OPTIONS)
         node->infos[HTTP_OPTIONS] = info;
-    if (methods | VLA_HTTP_TRACE)
+    if (methods & VLA_HTTP_TRACE)
         node->infos[HTTP_TRACE] = info;
-    if (methods | VLA_HTTP_PATCH)
+    if (methods & VLA_HTTP_PATCH)
         node->infos[HTTP_PATCH] = info;
 
     return 0;
