@@ -28,3 +28,13 @@ target_link_libraries(
     ${TALLOC_LIBRARY}
 )
 add_test(test_routes ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_routes)
+
+# Context Tests
+
+add_executable(test_context context.c)
+target_link_libraries(
+    test_context
+    libunity
+    ${PROJECT_NAME}
+)
+add_test(test_context ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_context)
