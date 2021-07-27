@@ -118,6 +118,12 @@ typedef struct vla_request_private
     size_t mw_i;
 } vla_request_private;
 
+/*
+ *==============================================================================
+ * Private
+ *==============================================================================
+ */
+
 /**
  * Destructor for vla_request.
  * 
@@ -187,6 +193,10 @@ static void pop_query_map(vla_request *req, const char *query)
         kh_val(map, it) = t_val;
 
         query = val + vallen;
+        if (*query == '&')
+        {
+            query += 1;
+        }
     }
 }
 
@@ -485,6 +495,12 @@ static void request_populate(vla_context *ctx, vla_request *req)
     }
 }
 
+/*
+ *==============================================================================
+ * Private API
+ *==============================================================================
+ */
+
 vla_request *request_new(vla_context *ctx, FCGX_Request *f_req)
 {
     static const vla_middleware_func no_middleware[] = {NULL};
@@ -545,52 +561,40 @@ const char *response_get_body(vla_request *req)
     return req->priv->res_body;
 }
 
-enum vla_handle_code vla_request_next_func(vla_request *req)
+/*
+ *==============================================================================
+ * Request
+ *==============================================================================
+ */
+
+const char *vla_request_query_get(vla_request *req, const char *key)
 {
-    vla_request_private *priv = req->priv;
-    if (priv->info == NULL)
+    khash_t(str) *map = req->priv->query_map;
+    khiter_t it = kh_get(str, map, key);
+    if (it == kh_end(map))
     {
-        /* TODO: Error logging. */
-        return VLA_HANDLE_IGNORE_TERM;
+        return NULL;
     }
-
-    vla_middleware_func mw_func = priv->info->mw[priv->mw_i];
-    void *mw_arg = priv->info->mw_args[priv->mw_i];
-    priv->mw_i++;
-    if (mw_func)
-    {
-        return mw_func(req, mw_arg);
-    }
-
-    if (priv->info->hdlr)
-    {
-        return priv->info->hdlr(req, priv->info->hdlr_arg);
-    }
-
-    /* TODO: Error logging. */
-    return VLA_HANDLE_IGNORE_TERM;
+    return kh_val(map, it);
 }
 
-const char *vla_request_body_get(vla_request *req, size_t size)
+int vla_request_query_iterate(
+    vla_request *req,
+    int (*callback)(const char *, const char *, void *),
+    void *arg)
 {
-    if (size == 0)
+    khash_t(str) *map = req->priv->query_map;
+    for (khiter_t it = 0; it < kh_end(map); ++it)
     {
-        size = req->content_length;
+        if (kh_exist(map, it))
+        {
+            if (callback(kh_key(map, it), kh_val(map, it), arg))
+            {
+                return 1;
+            }
+        }
     }
-    vla_request_private *priv = req->priv;
-
-    if (!priv->req_body)
-    {
-        priv->req_body = talloc_array(req, char, size + 1);
-        priv->req_body_len = FCGX_GetStr(priv->req_body, size, priv->f_req->in);
-        priv->req_body[priv->req_body_len] = '\0';
-    }
-    return priv->req_body;
-}
-
-size_t vla_request_body_get_length(vla_request *req)
-{
-    return req->priv->req_body_len;
+    return 0;
 }
 
 const char *vla_request_header_get(vla_request *req, const char *header)
@@ -622,9 +626,26 @@ int vla_request_header_iterate(
     return 0;
 }
 
-const char *vla_request_get_content_type(vla_request *req)
+const char *vla_request_body_get(vla_request *req, size_t size)
 {
-    return vla_request_header_get(req, "Content-Type");
+    if (size == 0)
+    {
+        size = req->content_length;
+    }
+    vla_request_private *priv = req->priv;
+
+    if (!priv->req_body)
+    {
+        priv->req_body = talloc_array(req, char, size + 1);
+        priv->req_body_len = FCGX_GetStr(priv->req_body, size, priv->f_req->in);
+        priv->req_body[priv->req_body_len] = '\0';
+    }
+    return priv->req_body;
+}
+
+size_t vla_request_body_get_length(vla_request *req)
+{
+    return req->priv->req_body_len;
 }
 
 const char *vla_request_getenv(vla_request *req, const char *var)
@@ -656,35 +677,37 @@ int vla_request_env_iterate(
     return 0;
 }
 
-const char *vla_request_query_get(vla_request *req, const char *key)
+enum vla_handle_code vla_request_next_func(vla_request *req)
 {
-    khash_t(str) *map = req->priv->query_map;
-    khiter_t it = kh_get(str, map, key);
-    if (it == kh_end(map))
+    vla_request_private *priv = req->priv;
+    if (priv->info == NULL)
     {
-        return NULL;
+        /* TODO: Error logging. */
+        return VLA_HANDLE_IGNORE_TERM;
     }
-    return kh_val(map, it);
+
+    vla_middleware_func mw_func = priv->info->mw[priv->mw_i];
+    void *mw_arg = priv->info->mw_args[priv->mw_i];
+    priv->mw_i++;
+    if (mw_func)
+    {
+        return mw_func(req, mw_arg);
+    }
+
+    if (priv->info->hdlr)
+    {
+        return priv->info->hdlr(req, priv->info->hdlr_arg);
+    }
+
+    /* TODO: Error logging. */
+    return VLA_HANDLE_IGNORE_TERM;
 }
 
-int vla_request_query_iterate(
-    vla_request *req,
-    int (*callback)(const char *, const char *, void *),
-    void *arg)
-{
-    khash_t(str) *map = req->priv->query_map;
-    for (khiter_t it = 0; it < kh_end(map); ++it)
-    {
-        if (kh_exist(map, it))
-        {
-            if (callback(kh_key(map, it), kh_val(map, it), arg))
-            {
-                return 1;
-            }
-        }
-    }
-    return 0;
-}
+/*
+ *==============================================================================
+ * Response
+ *==============================================================================
+ */
 
 int vla_response_header_insert(
     vla_request *req,

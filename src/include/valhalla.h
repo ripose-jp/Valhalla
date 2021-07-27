@@ -331,33 +331,34 @@ void vla_accept(vla_context *ctx);
  */
 
 /**
- * Gets the request body. 
- * This method will only read the message body up to size on the first 
- * call. Subsequent calls will return what portion of the body was already 
- * read.
+ * Gets the value of the query string from the request.
  * 
- * @param req The vla_request to get the body from.
+ * @param req The vla_request to get the query string from.
  * 
- * @param size The maximum amount (in bytes) of the body that can be read. If
- *             size == 0, the size in the "Content-Length" header is used. If
- *             the Content-Length header is not present, the empty string is
- *             returned. On all calls after the first call, the size parameter
- *             is ignored.
+ * @param key The key value of the query string.
  * 
- * @return The body of the request up to size. The body is always nul terminated
- *         regardless of the "Content-Type" header. Belongs to the vla_request.
+ * @return The value of the key. NULL if the key doesn't exist of the query
+ *         string was malformed.
  */
-const char *vla_request_body_get(vla_request *req, size_t size);
+const char *vla_request_query_get(vla_request *req, const char *key);
 
 /**
- * Gets the size of the request body.
+ * Iterates the query string values. Ordering is random.
  * 
- * @param req The request to get the body size from.
+ * @param req The vla_request to iterate over.
  * 
- * @return The size of the request body, 0 if it hasn't been read yet or if it
- *         doesn't have a body.
+ * @param callback The function to call for each value. The first argument is
+ *                 the key, and the second is the value. Returns 0 to continue
+ *                 iterating, nonzero to stop.
+ * 
+ * @param arg The third argument to the callback function.
+ * 
+ * @return 0 if every value was iterated over, 1 otherwise.
  */
-size_t vla_request_body_get_length(vla_request *req);
+int vla_request_query_iterate(
+    vla_request *req,
+    int (*callback)(const char *, const char *, void *),
+    void *arg);
 
 /**
  * Gets a request header.
@@ -389,14 +390,33 @@ int vla_request_header_iterate(
     void *arg);
 
 /**
- * Gets the value of the Content-Type header.
+ * Gets the request body. 
+ * This method will only read the message body up to size on the first 
+ * call. Subsequent calls will return what portion of the body was already 
+ * read.
  * 
- * @param req The vla_request to get the header from.
+ * @param req The vla_request to get the body from.
  * 
- * @return The Content-Type if it exists, NULL otherwise. Belongs to the
- *         vla_request.
+ * @param size The maximum amount (in bytes) of the body that can be read. If
+ *             size == 0, the size in the "Content-Length" header is used. If
+ *             the Content-Length header is not present, the empty string is
+ *             returned. On all calls after the first call, the size parameter
+ *             is ignored.
+ * 
+ * @return The body of the request up to size. The body is always nul terminated
+ *         regardless of the "Content-Type" header. Belongs to the vla_request.
  */
-const char *vla_request_get_content_type(vla_request *req);
+const char *vla_request_body_get(vla_request *req, size_t size);
+
+/**
+ * Gets the size of the request body.
+ * 
+ * @param req The request to get the body size from.
+ * 
+ * @return The size of the request body, 0 if it hasn't been read yet or if it
+ *         doesn't have a body.
+ */
+size_t vla_request_body_get_length(vla_request *req);
 
 /**
  * Gets the environment variable for this request. Runs in O(n) time.
@@ -424,36 +444,6 @@ const char *vla_request_getenv(vla_request *req, const char *var);
  * @return 0 if every value was iterated over, 1 otherwise.
  */
 int vla_request_env_iterate(
-    vla_request *req,
-    int (*callback)(const char *, const char *, void *),
-    void *arg);
-
-/**
- * Gets the value of the query string from the request.
- * 
- * @param req The vla_request to get the query string from.
- * 
- * @param key The key value of the query string.
- * 
- * @return The value of the key. NULL if the key doesn't exist of the query
- *         string was malformed.
- */
-const char *vla_request_query_get(vla_request *req, const char *key);
-
-/**
- * Iterates the query string values.
- * 
- * @param req The vla_request to iterate over.
- * 
- * @param callback The function to call for each value. The first argument is
- *                 the key, and the second is the value. Returns 0 to continue
- *                 iterating, nonzero to stop.
- * 
- * @param arg The third argument to the callback function.
- * 
- * @return 0 if every value was iterated over, 1 otherwise.
- */
-int vla_request_query_iterate(
     vla_request *req,
     int (*callback)(const char *, const char *, void *),
     void *arg);
