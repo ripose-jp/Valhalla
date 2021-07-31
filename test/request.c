@@ -112,7 +112,7 @@ static void *thread_send_request(void *arg)
     curl_easy_setopt(c, CURLOPT_HTTPHEADER, r_params.headers);
     if (r_params.body)
         curl_easy_setopt(c, CURLOPT_POSTFIELDS, r_params.body);
-    
+
     curl_easy_setopt(c, CURLOPT_WRITEFUNCTION, read_body);
 
     CURLcode code = curl_easy_perform(c);
@@ -150,6 +150,29 @@ void test_get_query()
     TEST_ASSERT_EQUAL_INT(0, ret);
 
     r_params.url = "http://localhost/request?key=val";
+
+    start_request();
+}
+
+enum vla_handle_code handler_get_query_utf8(vla_request *req, void *nul)
+{
+    const char *val = vla_request_query_get(req, "かぎ");
+    TEST_ASSERT_EQUAL_STRING("値", val);
+    return VLA_HANDLE_RESPOND_TERM;
+}
+
+void test_get_query_utf8()
+{
+    const char *route = "/request";
+    int ret = vla_add_route(
+        ctx,
+        VLA_HTTP_GET, route,
+        handler_get_query_utf8, NULL,
+        NULL
+    );
+    TEST_ASSERT_EQUAL_INT(0, ret);
+
+    r_params.url = "http://localhost/request?かぎ=値";
 
     start_request();
 }
@@ -643,6 +666,7 @@ int main(void)
     UNITY_BEGIN();
 
     RUN_TEST(test_get_query);
+    RUN_TEST(test_get_query_utf8);
     RUN_TEST(test_get_query_multi);
     RUN_TEST(test_get_query_case);
     RUN_TEST(test_get_query_missing);
