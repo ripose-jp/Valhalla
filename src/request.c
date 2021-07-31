@@ -290,7 +290,7 @@ static int header_append(
 
         char *val = talloc_array(req, char, strlen(value) + 1);
         strcpy(val, value);
-        kh_key(map, it) = val;
+        kh_val(map, it) = val;
         return 0;
     }
     }
