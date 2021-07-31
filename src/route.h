@@ -54,25 +54,25 @@ typedef struct route_info_t
 
 /**
  * Initializes the root of a route tree.
- * 
+ *
  * @param ctx The talloc context this root should belong to.
- * 
- * @return A route tree. 
+ *
+ * @return A route tree.
  */
 route_node_t *route_init_root(void *ctx);
 
 /**
  * Initializes a route_info_t.
- * 
+ *
  * @param ctx The talloc context the route_info_t should be a child of.
- * 
+ *
  * @param hdlr The handler function for the route info.
- * 
+ *
  * @param hdlr_arg The second argument to the hdlr function.
- * 
+ *
  * @param ap A va_list containing alternating pointers to vla_middleware_func
  *           and void * arguments. Terminated with a NULL vla_middleware_func.
- * 
+ *
  * @return A route_info_t containing a copy of all the route information.
  */
 route_info_t *route_info_create(
@@ -84,23 +84,23 @@ route_info_t *route_info_create(
 /**
  * Adds a route.
  * Routes are expected to be URL decoded.
- * 
+ *
  * @param root The root node of the route tree.
- * 
+ *
  * @param methods Flags defining what HTTP methods should be handled by this
  *                route. Defined by ORing vla_http_verbs together.
- * 
+ *
  * @param route The route to handle. Routing supports regular expressions. Each
  *              section of a route is delmited by /. For example '/*' will
  *              match '/foo' but not '/foo/bar'.
- * 
+ *
  * @param hdlr The handler function for this route.
- * 
+ *
  * @param hdlr_arg The second argument to the hdlr function.
- * 
+ *
  * @param ap A va_list containing alternating pointers to vla_middleware_func
  *           and void * arguments. Terminated with a NULL vla_middleware_func.
- * 
+ *
  * @return 0 on success, 1 if the route overlaps with another, -1 if the route
  *         doesn't start with '/'.
  */
@@ -115,13 +115,13 @@ int route_add(
 /**
  * Gets handlers for the route and method.
  * Routes are expected to be URL decoded.
- * 
+ *
  * @param root The root of the route tree.
- * 
+ *
  * @param route The route to get.
- * 
+ *
  * @param method The method of the route to get.
- * 
+ *
  * @return The route_info_t of the route and method if it exists, NULL
  *         otherwise.
  */

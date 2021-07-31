@@ -33,11 +33,11 @@
 /**
  * strchr except if the character isn't found, a pointer to the nul terminator
  * is returned.
- * 
+ *
  * @param s The string to search through.
- * 
+ *
  * @param c The character to look for.
- * 
+ *
  * @return A pointer to the first occurance of c in s. A pointer to the nul
  *         terminator in s if c isn't found.
  */
@@ -45,9 +45,9 @@ const char *su_strchrnul(const char *s, int c);
 
 /**
  * Encodes a string into a URL-encoded string.
- * 
+ *
  * @param str The string to URL encode.
- * 
+ *
  * @return The string encoded into URL-encoding. Allocated by talloc with no
  *         parent. Belongs to the caller.
  */
@@ -55,11 +55,11 @@ char *su_url_encode(const char *str);
 
 /**
  * Encodes a string into a URL-encoded string.
- * 
+ *
  * @param str The string to URL encode.
- * 
+ *
  * @param len The length of the string.
- * 
+ *
  * @return The string encoded into URL-encoding. Allocated by talloc with no
  *         parent. Belongs to the caller.
  */
@@ -67,9 +67,9 @@ char *su_url_encode_l(const char *str, size_t len);
 
 /**
  * Decodes a URL-encoded string.
- * 
+ *
  * @param str The URL-encoded string to decode.
- * 
+ *
  * @return A URL decoded into UTF-8. Allocated by talloc with no parent.
  *         Belongs to the caller.
  */
@@ -77,11 +77,11 @@ char *su_url_decode(const char *str);
 
 /**
  * Decodes a URL-encoded string.
- * 
+ *
  * @param str The URL-encoded string to decode.
- * 
+ *
  * @param len The length of the string.
- * 
+ *
  * @return A URL decoded into UTF-8. Allocated by talloc with no parent.
  *         Belongs to the caller.
  */

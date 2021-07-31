@@ -35,13 +35,13 @@
 
 /**
  * Hashes a string ignoring case.
- * 
+ *
  * @param ptr A pointer to the string to hash.
- * 
+ *
  * @param unused Length of ptr. Unused because strings are nul terminated.
- * 
+ *
  * @param seed The seed to use in the hash function.
- * 
+ *
  * @return The hash of ptr.
  */
 static size_t hash_ignorecase(const char *str)
@@ -53,7 +53,7 @@ static size_t hash_ignorecase(const char *str)
         buf[len] = tolower(str[len]);
     }
     buf[len] = '\0';
-    
+
     return kh_str_hash_func(buf);
 }
 

@@ -35,7 +35,7 @@
 
 #include "request.h"
 
-typedef struct vla_context 
+typedef struct vla_context
 {
     route_node_t *route_tree_root;
 
@@ -44,9 +44,9 @@ typedef struct vla_context
 
 /**
  * Destructor for vla_context.
- * 
+ *
  * @param ctx The val_context to destruct.
- * 
+ *
  * @return 0 on success, -1 on failure.
  */
 static int context_destructor(vla_context *ctx)
@@ -123,13 +123,13 @@ route_info_t *context_get_route(
 /**
  * Callback function for handling iterating over response headers. Prints
  * headers to the response.
- * 
+ *
  * @param hdr The header.
- * 
+ *
  * @param val The value of the header.
- * 
+ *
  * @param ptr A pointer to the FCGI request.
- * 
+ *
  * @return 0 on success, -1 on error.
  */
 int resp_header_handler(const char *hdr, const char *val, void *ptr)
@@ -144,11 +144,11 @@ int resp_header_handler(const char *hdr, const char *val, void *ptr)
 
 /**
  * Sends a response to the web server.
- * 
+ *
  * @param f_req The FCGI request.
- * 
+ *
  * @param req The request containg the response information.
- * 
+ *
  * @return 0 if the response was successfully sent, -1 otherwise.
  */
 static int send_response(FCGX_Request *f_req, vla_request *req)

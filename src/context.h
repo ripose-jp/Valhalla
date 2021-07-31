@@ -34,13 +34,13 @@
 
 /**
  * Gets the route_info_t corresponding to the route.
- * 
+ *
  * @param ctx The vla_context to get the route from.
- * 
+ *
  * @param uri The request URI.
- * 
+ *
  * @param method The HTTP request method.
- * 
+ *
  * @return The route_info_t corresponding to the route. NULL if it doesn't
  *         exist.
  */

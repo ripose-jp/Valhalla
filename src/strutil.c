@@ -52,9 +52,9 @@ const char *su_strchrnul(const char *s, int c)
 
 /**
  * Converts a hex character to its integer value.
- * 
+ *
  * @param ch The character to convert. Must be a valid 0 - F hex character.
- * 
+ *
  * @return The integer equivalent ch.
  */
 static char from_hex(char ch)
@@ -64,9 +64,9 @@ static char from_hex(char ch)
 
 /**
  * Converts an integer value to its hex character.
- * 
+ *
  * @param code The integer value to convert.
- * 
+ *
  * @return A hex character corresponding to the lower four bits of code.
  */
 static char to_hex(char code)

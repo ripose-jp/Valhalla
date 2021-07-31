@@ -87,9 +87,9 @@ typedef struct route_node_t
 
 /**
  * Destructs a route_node_t.
- * 
+ *
  * @param node The route_node_t to destruct.
- * 
+ *
  * @return Always 0.
  */
 static int destruct_route_node(route_node_t *node)
@@ -100,7 +100,7 @@ static int destruct_route_node(route_node_t *node)
 
 /**
  * Initializes a route_node_t.
- * 
+ *
  * @param parent The parent of the route_node_t. Used for talloc garbage
  *               collection.
  */
@@ -128,11 +128,11 @@ route_node_t *route_init_root(void *ctx)
 
 /**
  * Creates a path in the tree for the route.
- * 
+ *
  * @param root The root node of the route tree.
- * 
+ *
  * @param route The route to add.
- * 
+ *
  * @return The terminating node for the route. NULL if the route overlaps with
  *         another existing route or error.
  */
@@ -167,7 +167,7 @@ static route_node_t *create_route_path(route_node_t *root, const char *route)
             case -1: // Error
                 /* TODO Logging */
                 return NULL;
-            
+
             default: // Key exists (should never happen)
                 assert(0);
             }
@@ -186,7 +186,7 @@ static route_node_t *create_route_path(route_node_t *root, const char *route)
                 return NULL;
             }
             break;
-        
+
         case NODE_CAPTURE:
             if (route[1] != ':')
             {
@@ -199,7 +199,7 @@ static route_node_t *create_route_path(route_node_t *root, const char *route)
             }
             --route;
             break;
-        
+
         case NODE_ALL:
             if (route[1] != '*')
             {
@@ -215,11 +215,11 @@ static route_node_t *create_route_path(route_node_t *root, const char *route)
 
 /**
  * Get the node associated with a route in the tree.
- * 
+ *
  * @param root The root of the route tree.
- * 
+ *
  * @param route The route this route info should be associated with.
- * 
+ *
  * @return The route node the route leads to, NULL if it doesn't.
  */
 static route_node_t *get_route_node(route_node_t *root, const char *route)
@@ -244,7 +244,7 @@ static route_node_t *get_route_node(route_node_t *root, const char *route)
             }
             --route;
             break;
-        
+
         case NODE_ALL:
             return current;
         }

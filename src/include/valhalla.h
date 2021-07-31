@@ -195,25 +195,25 @@ enum vla_handle_code
 
 /**
  * Creates a new Valhalla context.
- * 
+ *
  * @return A vla_context. Should be freed by vla_free(). NULL on error.
  */
 vla_context *vla_init();
 
 /**
  * Frees dynamically allocated memory.
- * 
+ *
  * @param ptr The memory that should be freed. No-ops on NULL.
- * 
+ *
  * @return 0 on success, -1 on failure.
  */
 int vla_free(void *ptr);
 
 /**
  * Adds a new route. Routes cannot be deleted.
- * 
+ *
  * An example call to this function looks like:
- * 
+ *
  *      vla_add_route(
  *          ctx,
  *          VLA_HTTP_POST | VLA_HTTP_PUT,
@@ -223,7 +223,7 @@ int vla_free(void *ptr);
  *          &inject_headers, NULL,
  *          NULL
  *      );
- * 
+ *
  * This will add a route for handling POST and PUT requests to any URI that
  * matches '/book/*' by sending it to the user-defined 'book_handler' function,
  * passing in as the second argument to that function a pointer to 'book_info'.
@@ -231,32 +231,32 @@ int vla_free(void *ptr);
  * have a pointer to 'auth_ctx' passed in as the second argument, then to the
  * 'inject_headers' middleware function which will have NULL passed in as the
  * second argument. The final NULL terminates the argument list.
- * 
+ *
  * @param ctx The context of this Valhalla instance.
- * 
+ *
  * @param methods The methods this route should respond to.
  *                HTTP verb flags defined in the vla_http_method enum.
- * 
+ *
  * @param route The location of the route. If a route contains a ':', everything
  *              after the colon up to the next '/' (or end of string if that
  *              comes first) is matched. If a route contains a '*', everything
  *              after that '*' is matched.
- * 
- * 
+ *
+ *
  * @param handler A function for handling an incoming request.
  *                The vla_request belongs to Valhalla. It is freed after the
  *                return of handler and before accepting the next request.
  *                Returns either VLA_HANDLE_RESPOND_ACCEPT,
  *                VLA_HANDLE_RESPOND_TERM, VLA_HANDLE_IGNORE_ACCEPT, or
  *                VLA_HANDLE_IGNORE_TERM.
- * 
+ *
  * @param handler_arg The second argument to the handler function.
- * 
+ *
  * @param ... An alternating list of vla_middleware_func and void * arguments,
  *            terminated by NULL pointer to a vla_middleware_func (NOT a void *)
  *            argument. The middleware and middleware_arg params describe these
  *            functions.
- * 
+ *
  * @param middleware Middleware are handlers that intercept a request and
  *                   potentially prevent the handler function from being
  *                   reached.
@@ -265,10 +265,10 @@ int vla_free(void *ptr);
  *                   A middleware function takes in a vla_request, and returns
  *                   either VLA_HANDLE_RESPOND_ACCEPT, VLA_HANDLE_RESPOND_TERM,
  *                   VLA_HANDLE_IGNORE_ACCEPT, or VLA_HANDLE_IGNORE_TERM.
- * 
+ *
  * @param middleware_arg The second argument to a middleware function. Assumed
  *                       to be a void *.
- * 
+ *
  * @return 0 if the route was added, 1 if the route overlaps with another, -1 if
  *         the route doesn't start with '/'.
  */
@@ -282,23 +282,23 @@ int vla_add_route(
 
 /**
  * Sets the handler to handle requests when no matching route is found.
- * 
+ *
  * @param ctx The context of this Valhalla instance.
- * 
+ *
  * @param handler A function for handling an incoming request.
  *                The vla_request belongs to Valhalla. It is freed after the
  *                return of handler and before accepting the next request.
  *                Returns either VLA_HANDLE_RESPOND_ACCEPT,
  *                VLA_HANDLE_RESPOND_TERM, VLA_HANDLE_IGNORE_ACCEPT, or
  *                VLA_HANDLE_IGNORE_TERM.
- * 
+ *
  * @param handler_arg The second argument to the handler function.
- * 
+ *
  * @param ... An alternating list of vla_middleware_func and void * arguments,
  *            terminated by NULL pointer to a vla_middleware_func (NOT a void *)
  *            argument. The middleware and middleware_arg params describe these
  *            functions.
- * 
+ *
  * @param middleware Middleware are handlers that intercept a request and
  *                   potentially prevent the handler function from being
  *                   reached.
@@ -307,7 +307,7 @@ int vla_add_route(
  *                   A middleware function takes in a vla_request, and returns
  *                   either VLA_HANDLE_RESPOND_ACCEPT, VLA_HANDLE_RESPOND_TERM,
  *                   VLA_HANDLE_IGNORE_ACCEPT, or VLA_HANDLE_IGNORE_TERM.
- * 
+ *
  * @param middleware_arg The second argument to a middleware function. Assumed
  *                       to be a void *.
  */
@@ -319,7 +319,7 @@ void vla_set_not_found_handler(
 
 /**
  * Accepts incoming web requests. Blocks while waiting.
- * 
+ *
  * @param ctx The context containing the route information.
  */
 void vla_accept(vla_context *ctx);
@@ -332,11 +332,11 @@ void vla_accept(vla_context *ctx);
 
 /**
  * Gets the value of the query string from the request.
- * 
+ *
  * @param req The vla_request to get the query string from.
- * 
+ *
  * @param key The key value of the query string.
- * 
+ *
  * @return The value of the key. NULL if the key doesn't exist of the query
  *         string was malformed.
  */
@@ -344,15 +344,15 @@ const char *vla_request_query_get(vla_request *req, const char *key);
 
 /**
  * Iterates the query string values. Ordering is random.
- * 
+ *
  * @param req The vla_request to iterate over.
- * 
+ *
  * @param callback The function to call for each value. The first argument is
  *                 the key, and the second is the value. Returns 0 to continue
  *                 iterating, nonzero to stop.
- * 
+ *
  * @param arg The third argument to the callback function.
- * 
+ *
  * @return 0 if every value was iterated over, 1 otherwise.
  */
 int vla_request_query_iterate(
@@ -362,26 +362,26 @@ int vla_request_query_iterate(
 
 /**
  * Gets a request header.
- * 
+ *
  * @param req The vla_request to get the header from.
- * 
+ *
  * @param header The header to get the value of.
- * 
+ *
  * @return The header if it exists, NULL otherwise. Belongs to the vla_request.
  */
 const char *vla_request_header_get(vla_request *req, const char *header);
 
 /**
  * Iterates over request headers.
- * 
+ *
  * @param req The vla_request to iterate over.
- * 
+ *
  * @param callback The function to call for each value. The first argument is
  *                 the header, and the second is the value. Returns 0 to
  *                 continue iterating, nonzero to stop.
- * 
+ *
  * @param arg The third argument to the callback function.
- * 
+ *
  * @return 0 if every value was iterated over, 1 otherwise.
  */
 int vla_request_header_iterate(
@@ -390,19 +390,19 @@ int vla_request_header_iterate(
     void *arg);
 
 /**
- * Gets the request body. 
- * This method will only read the message body up to size on the first 
- * call. Subsequent calls will return what portion of the body was already 
+ * Gets the request body.
+ * This method will only read the message body up to size on the first
+ * call. Subsequent calls will return what portion of the body was already
  * read.
- * 
+ *
  * @param req The vla_request to get the body from.
- * 
+ *
  * @param size The maximum amount (in bytes) of the body that can be read. If
  *             size == 0, the size in the "Content-Length" header is used. If
  *             the Content-Length header is not present, the empty string is
  *             returned. On all calls after the first call, the size parameter
  *             is ignored.
- * 
+ *
  * @return The body of the request up to size. The body is always nul terminated
  *         regardless of the "Content-Type" header. Belongs to the vla_request.
  */
@@ -410,9 +410,9 @@ const char *vla_request_body_get(vla_request *req, size_t size);
 
 /**
  * Gets the size of the request body.
- * 
+ *
  * @param req The request to get the body size from.
- * 
+ *
  * @return The size of the request body, 0 if it hasn't been read yet or if it
  *         doesn't have a body.
  */
@@ -420,11 +420,11 @@ size_t vla_request_body_get_length(vla_request *req);
 
 /**
  * Gets the environment variable for this request. Runs in O(n) time.
- * 
+ *
  * @param req The current request.
- * 
+ *
  * @param var The name of the environment variable.
- * 
+ *
  * @return The value of the environment variable. NULL if it doesn't exist.
  *         Belongs to vla_request. Belongs to the vla_request.
  */
@@ -432,15 +432,15 @@ const char *vla_request_getenv(vla_request *req, const char *var);
 
 /**
  * Iterates over environment variables.
- * 
+ *
  * @param req The vla_request to iterate over.
- * 
+ *
  * @param callback The function to call for each value. The first argument is
  *                 the name of the environment variable, and the second is the
  *                 value. Returns 0 to continue iterating, nonzero to stop.
- * 
+ *
  * @param arg The third argument to the callback function.
- * 
+ *
  * @return 0 if every value was iterated over, 1 otherwise.
  */
 int vla_request_env_iterate(
@@ -451,9 +451,9 @@ int vla_request_env_iterate(
 /**
  * Moves to the next function in the request chain.
  * This could be either a middleware or handler function.
- * 
+ *
  * @param req The current request being handled.
- * 
+ *
  * @return A vla_response_code.
  */
 enum vla_handle_code vla_request_next_func(vla_request *req);
@@ -466,13 +466,13 @@ enum vla_handle_code vla_request_next_func(vla_request *req);
 
 /**
  * Adds a header to the response. Replaces it if it already exists.
- * 
+ *
  * @param req The request to add the response header to.
- * 
+ *
  * @param header The name of the header. Not case sensative.
- * 
+ *
  * @param value The value of the header.
- * 
+ *
  * @return 0 if the action occurred succesfully, nonzero on error.
  */
 int vla_response_header_insert(
@@ -483,13 +483,13 @@ int vla_response_header_insert(
 /**
  * Appends values to a response header in as a comma seperated list. Inserts the
  * header and value if it doesn't already exist.
- * 
+ *
  * @param req The request to add the response header to.
- * 
+ *
  * @param header The name of the header. Not case sensative.
- * 
+ *
  * @param value The value to append to the header.
- * 
+ *
  * @return 0 if the action occurred succesfully, nonzero on error.
  */
 int vla_response_header_append(
@@ -499,22 +499,22 @@ int vla_response_header_append(
 
 /**
  * Removes the header from the response.
- * 
+ *
  * @param req The request to remove the header from.
- * 
+ *
  * @param header The header to remove.
- * 
+ *
  * @return 0 if the header was successfully removed, -1 if it didn't exist.
  */
 int vla_response_header_remove(vla_request *req, const char *header);
 
 /**
  * Gets the value of the response header.
- * 
+ *
  * @param req The request to get the response header from.
- * 
+ *
  * @param header The header to get.
- * 
+ *
  * @return The value of the header, NULL if it doesn't exist.
  */
 const char *vla_response_header_get(vla_request *req, const char *header);
@@ -523,40 +523,40 @@ const char *vla_response_header_get(vla_request *req, const char *header);
  * Sets the status code for this response.
  * This is equivalent to calling
  * vla_response_header_insert(req, "Status", code)
- * 
+ *
  * @param req The vla_request to set the status code for.
- * 
+ *
  * @param code The status code to return.
- * 
+ *
  * @return 0 if the status code was succesfully set, nonzero on error.
  */
 int vla_response_set_status_code(vla_request *req, unsigned int code);
 
 /**
  * Gets the currently set status code for the response.
- * 
+ *
  * @param req The request to get the status code from.
- * 
+ *
  * @return The current status code. 200 is set by default.
  */
 unsigned int vla_response_get_status_code(vla_request *req);
 
 /**
  * Sets the value of the Content-Type header.
- * 
+ *
  * @param req The request to set the header in.
- * 
+ *
  * @param type The Content-Type to set.
- * 
+ *
  * @return 0 on success, nonzero on error.
  */
 int vla_response_set_content_type(vla_request *req, const char *type);
 
 /**
  * Gets the value of the Content-Type header.
- * 
+ *
  * @param req The request to get the header from.
- * 
+ *
  * @return The value of the Content-Type header. NULL if it doesn't exist.
  */
 const char *vla_response_get_content_type(vla_request *req);
@@ -565,29 +565,29 @@ const char *vla_response_get_content_type(vla_request *req);
  * Appends data to the body of a response. Data is buffered and not actually
  * sent until the handler/middleware function returns. This means headers can be
  * set after calling vla_printf if need be.
- * 
+ *
  * @param req The request to append data to.
- * 
+ *
  * @param fmt The format string.
  */
 void vla_printf(vla_request *req, const char *fmt, ...);
 
 /**
  * Appends a string to the body of a response.
- * 
+ *
  * @param req The request to append data to.
- * 
+ *
  * @param s The string to append to the body.
  */
 void vla_puts(vla_request *req, const char *s);
 
 /**
  * Appends a fixed amount of data to the body of a response.
- * 
+ *
  * @param req The request to append data to.
- * 
+ *
  * @param data The data to append.
- * 
+ *
  * @param len The length of the data to append.
  */
 void vla_write(vla_request *req, const char *data, size_t len);

@@ -40,11 +40,11 @@
 
 /**
  * Checks if a string has a prefix.
- * 
+ *
  * @param __str The string to check the prefix of.
- * 
+ *
  * @param __prefix A string literal prefix.
- * 
+ *
  * @return 1 if true, 0 otherwise.
  */
 #define HAS_PREFIX(__str, __prefix) \
@@ -126,9 +126,9 @@ typedef struct vla_request_private
 
 /**
  * Destructor for vla_request.
- * 
+ *
  * @param req The vla_request to destruct.
- * 
+ *
  * @return 0 on success, -1 on failure.
  */
 static int request_destructor(vla_request *req)
@@ -142,9 +142,9 @@ static int request_destructor(vla_request *req)
 
 /**
  * Populates the query string map.
- * 
+ *
  * @param req The vla_request to add the formatted values to.
- * 
+ *
  * @param query The raw query string.
  */
 static void pop_query_map(vla_request *req, const char *query)
@@ -202,17 +202,17 @@ static void pop_query_map(vla_request *req, const char *query)
 
 /**
  * Inserts a header into the hash table. Replaces it if it already exists.
- * 
+ *
  * @param req The request associated with this. Used for memory management.
- * 
+ *
  * @param map The map to append the header to.
- * 
+ *
  * @param header The header to add. Not case sensative. Copied to the heap, so
  *               this function does NOT take ownership.
- * 
+ *
  * @param value The header value to add. Copied to the heap, so this function
  *              does NOT take ownership.
- * 
+ *
  * @return 0 on success, -1 on failure.
  */
 static int header_insert(
@@ -248,17 +248,17 @@ static int header_insert(
 
 /**
  * Appends a header to a map. Inserts it if it doesn't exist.
- * 
+ *
  * @param req The request associated with this. Used for memory management.
- * 
+ *
  * @param map The map to append the header value to.
- * 
+ *
  * @param header The header to append to. Not case sensative. Copied to the
  *               heap, so this function does NOT take ownership.
- * 
+ *
  * @param value The header value to append. Copied to the heap, so this function
  *              does NOT take ownership.
- * 
+ *
  * @return 0 on success, -1 on error.
  */
 static int header_append(
@@ -281,7 +281,7 @@ static int header_append(
         strcpy(&val[old_val_len], value);
         return 0;
     }
-    
+
     case 1: // Key doesn't exist
     {
         char *key = talloc_array(req, char, strlen(header) + 1);
@@ -300,11 +300,11 @@ static int header_append(
 
 /**
  * Deletes a header from the map.
- * 
+ *
  * @param map The map to delete the header from.
- * 
+ *
  * @param header The header to delete. Not case sensative.
- * 
+ *
  * @return 0 on success, -1 if the header doesn't exist.
  */
 static int header_delete(khash_t(strcase) *map, const char *header)
@@ -329,11 +329,11 @@ static int header_delete(khash_t(strcase) *map, const char *header)
 /**
  * Adds an HTTP request header to the header map. If a header is duplicated,
  * creates a comma seperated list.
- * 
+ *
  * @param req The request to add the header to.
- * 
+ *
  * @param envstr The environment string of the form 'HTTP_{NAME}={VAL}'
- * 
+ *
  * @return 0 on success, -1 otherwise.
  */
 static int request_add_header(vla_request *req, const char *envstr)
@@ -361,9 +361,9 @@ static int request_add_header(vla_request *req, const char *envstr)
 
 /**
  * Fills the fields a vla_request with the relevant request information.
- * 
+ *
  * @param ctx The vla_context attatched to this request.
- * 
+ *
  * @param req The request to populate the fields of.
  */
 static void request_populate(vla_context *ctx, vla_request *req)
@@ -474,7 +474,7 @@ static void request_populate(vla_context *ctx, vla_request *req)
         }
         else if (HAS_PREFIX(*str, REMOTE_ADDR))
         {
-            req->remote_addr = val;   
+            req->remote_addr = val;
         }
         else if (HAS_PREFIX(*str, REMOTE_PORT))
         {
@@ -529,7 +529,7 @@ vla_request *request_new(vla_context *ctx, FCGX_Request *f_req)
     request_populate(ctx, req);
     req->priv->info = context_get_route(ctx, req->document_uri, req->method);
     vla_response_set_status_code(req, 200);
-    
+
     talloc_set_name(
         req, "Request from %s:%s", req->remote_addr, req->remote_port
     );

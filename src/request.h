@@ -34,11 +34,11 @@ typedef struct FCGX_Request FCGX_Request;
 
 /**
  * Initializes a new vla_request.
- * 
+ *
  * @param ctx The vla_context that this request is a child of.
- * 
+ *
  * @param f_req The FastCGI request tied to this request.
- * 
+ *
  * @return A newly allocated vla_request that is a child of ctx. Should be freed
  *         with talloc_free().
  */
@@ -46,15 +46,15 @@ vla_request *request_new(vla_context *ctx, FCGX_Request *f_req);
 
 /**
  * Iterates through every response header and value.
- * 
+ *
  * @param req The request tied to the response.
- * 
+ *
  * @param callback The callback function. The first argument is the header, and
  *                 the second argument is the value. Return 0 to continue
  *                 iterating, return nonzero to stop.
- * 
+ *
  * @param arg The third argument to the callback function.
- * 
+ *
  * @return 0 if every header was iterated through, -1 otherwise.
  */
 int response_header_iterate(
@@ -64,9 +64,9 @@ int response_header_iterate(
 
 /**
  * Gets the body of the request.
- * 
+ *
  * @param req The request to get the response body from.
- * 
+ *
  * @return The body of the response.
  */
 const char *response_get_body(vla_request *req);
