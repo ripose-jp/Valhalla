@@ -58,3 +58,19 @@ add_test(
     NAME test_request
     COMMAND spawn-fcgi -p 9001 -n ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_request
 )
+
+# Response Tests
+
+add_executable(test_response response.c)
+target_link_libraries(
+    test_response
+    libunity
+    ${PROJECT_NAME}
+    ${CURL_LIBRARY}
+    ${TALLOC_LIBRARY}
+    Threads::Threads
+)
+add_test(
+    NAME test_response
+    COMMAND spawn-fcgi -p 9002 -n ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_response
+)
