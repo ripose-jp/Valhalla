@@ -749,7 +749,7 @@ int vla_response_set_status_code(vla_request *req, unsigned int code)
     return vla_response_header_insert(req, "Status", buf);
 }
 
-unsigned int val_response_get_status_code(vla_request *req)
+unsigned int vla_response_get_status_code(vla_request *req)
 {
     return req->priv->res_status;
 }
