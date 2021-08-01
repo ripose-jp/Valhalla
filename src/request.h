@@ -71,4 +71,13 @@ int response_header_iterate(
  */
 const char *response_get_body(vla_request *req);
 
+/**
+ * Gets the length of the body of the request.
+ *
+ * @param req The request to get the response body from.
+ *
+ * @return The body length of the response body.
+ */
+size_t response_get_body_length(vla_request *req);
+
 #endif // __REQUEST_H__

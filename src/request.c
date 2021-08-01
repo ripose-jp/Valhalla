@@ -561,6 +561,11 @@ const char *response_get_body(vla_request *req)
     return req->priv->res_body;
 }
 
+size_t response_get_body_length(vla_request *req)
+{
+    return sdslen(req->priv->res_body);
+}
+
 /*
  *==============================================================================
  * Request

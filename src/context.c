@@ -161,7 +161,9 @@ static int send_response(FCGX_Request *f_req, vla_request *req)
     {
         return -1;
     }
-    if (FCGX_PutS(response_get_body(req), f_req->out) < 0)
+    const char *body = response_get_body(req);
+    size_t body_len = response_get_body_length(req);
+    if (FCGX_PutStr(body, body_len, f_req->out) < 0)
     {
         return -1;
     }
