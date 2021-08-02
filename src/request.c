@@ -653,6 +653,13 @@ size_t vla_request_body_get_length(vla_request *req)
     return req->priv->req_body_len;
 }
 
+size_t vla_request_body_chunk(vla_request *req, void *buffer, size_t cap)
+{
+    FCGX_Request *f_req = req->priv->f_req;
+    char *buf = buffer;
+    return FCGX_GetStr(buf, cap, f_req->in);
+}
+
 const char *vla_request_getenv(vla_request *req, const char *var)
 {
     return FCGX_GetParam(var, req->priv->f_req->envp);

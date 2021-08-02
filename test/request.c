@@ -565,6 +565,100 @@ void test_get_body_length_gt()
     start_request();
 }
 
+enum vla_handle_code handler_get_body_chunk(vla_request *req, void *nul)
+{
+    char buf[256];
+    size_t read = 0;
+
+    read += vla_request_body_chunk(req, &buf[read], 3);
+    TEST_ASSERT_EQUAL_size_t(3, read);
+    TEST_ASSERT_EQUAL_CHAR_ARRAY("Tea", buf, read);
+
+    read += vla_request_body_chunk(req, &buf[read], 4);
+    TEST_ASSERT_EQUAL_size_t(7, read);
+    TEST_ASSERT_EQUAL_CHAR_ARRAY("Tea and", buf, read);
+
+    read += vla_request_body_chunk(req, &buf[read], 6);
+    TEST_ASSERT_EQUAL_size_t(13, read);
+    TEST_ASSERT_EQUAL_CHAR_ARRAY("Tea and Honey", buf, read);
+
+    return VLA_HANDLE_RESPOND_TERM;
+}
+
+void test_get_body_chunk()
+{
+    const char *route = "/request";
+    int ret = vla_add_route(
+        ctx,
+        VLA_HTTP_POST, route,
+        handler_get_body_chunk, NULL,
+        NULL
+    );
+    TEST_ASSERT_EQUAL_INT(0, ret);
+
+    r_params.method = "POST";
+    r_params.body = "Tea and Honey";
+
+    start_request();
+}
+
+enum vla_handle_code handler_get_body_chunk_gt(vla_request *req, void *nul)
+{
+    char buf[256];
+    size_t read;
+
+    read = vla_request_body_chunk(req, buf, sizeof(buf));
+    TEST_ASSERT_EQUAL_size_t(strlen(r_params.body), read);
+    TEST_ASSERT_EQUAL_CHAR_ARRAY(r_params.body, buf, read);
+
+    return VLA_HANDLE_RESPOND_TERM;
+}
+
+void test_get_body_chunk_gt()
+{
+    const char *route = "/request";
+    int ret = vla_add_route(
+        ctx,
+        VLA_HTTP_POST, route,
+        handler_get_body_chunk_gt, NULL,
+        NULL
+    );
+    TEST_ASSERT_EQUAL_INT(0, ret);
+
+    r_params.method = "POST";
+    r_params.body = "Chunk and Chunkier";
+
+    start_request();
+}
+
+enum vla_handle_code handler_get_body_chunk_empty(vla_request *req, void *nul)
+{
+    char buf[256];
+    size_t read;
+
+    read = vla_request_body_chunk(req, buf, sizeof(buf));
+    TEST_ASSERT_EQUAL_size_t(strlen(r_params.body), read);
+
+    return VLA_HANDLE_RESPOND_TERM;
+}
+
+void test_get_body_chunk_empty()
+{
+    const char *route = "/request";
+    int ret = vla_add_route(
+        ctx,
+        VLA_HTTP_POST, route,
+        handler_get_body_chunk_empty, NULL,
+        NULL
+    );
+    TEST_ASSERT_EQUAL_INT(0, ret);
+
+    r_params.method = "POST";
+    r_params.body = "";
+
+    start_request();
+}
+
 enum vla_handle_code handler_getenv(vla_request *req, void *nul)
 {
     const char *body = vla_request_getenv(req, "REMOTE_ADDR");
@@ -708,6 +802,10 @@ int main(void)
     RUN_TEST(test_get_body_length);
     RUN_TEST(test_get_body_length_gt);
     RUN_TEST(test_get_body_length_repeat);
+
+    RUN_TEST(test_get_body_chunk);
+    RUN_TEST(test_get_body_chunk_gt);
+    RUN_TEST(test_get_body_chunk_empty);
 
     RUN_TEST(test_getenv);
 

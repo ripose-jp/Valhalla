@@ -391,9 +391,13 @@ int vla_request_header_iterate(
 
 /**
  * Gets the request body.
+ *
  * This method will only read the message body up to size on the first
  * call. Subsequent calls will return what portion of the body was already
  * read.
+ *
+ * If the body should be read in chunks, use vla_request_body_chunk instead. Do
+ * not use both.
  *
  * @param req The vla_request to get the body from.
  *
@@ -409,7 +413,7 @@ int vla_request_header_iterate(
 const char *vla_request_body_get(vla_request *req, size_t size);
 
 /**
- * Gets the size of the request body.
+ * Gets the size of the request body from vla_request_body_get.
  *
  * @param req The request to get the body size from.
  *
@@ -417,6 +421,22 @@ const char *vla_request_body_get(vla_request *req, size_t size);
  *         doesn't have a body.
  */
 size_t vla_request_body_get_length(vla_request *req);
+
+/**
+ * Reads the request body in chunks into a buffer. Output is not nul terminated.
+ *
+ * If the body should be read all at once, consider using vla_request_body_get.
+ * Do not use both.
+ *
+ * @param req The request to get the body from.
+ *
+ * @param[out] buffer A pointer to the buffer to write data to.
+ *
+ * @param cap The size of the buffer in bytes.
+ *
+ * @return The number of bytes written to the buffer.
+ */
+size_t vla_request_body_chunk(vla_request *req, void *buffer, size_t cap);
 
 /**
  * Gets the environment variable for this request. Runs in O(n) time.
