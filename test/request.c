@@ -457,6 +457,30 @@ void test_get_body()
     start_request();
 }
 
+enum vla_handle_code handler_get_body_empty(vla_request *req, void *nul)
+{
+    const char *body = vla_request_body_get(req, 0);
+    TEST_ASSERT_EQUAL_STRING(r_params.body, body);
+    return VLA_HANDLE_RESPOND_TERM;
+}
+
+void test_get_body_empty()
+{
+    const char *route = "/request";
+    int ret = vla_add_route(
+        ctx,
+        VLA_HTTP_POST, route,
+        handler_get_body_empty, NULL,
+        NULL
+    );
+    TEST_ASSERT_EQUAL_INT(0, ret);
+
+    r_params.method = "POST";
+    r_params.body = "";
+
+    start_request();
+}
+
 enum vla_handle_code handler_get_body_length(vla_request *req, void *nul)
 {
     const char *body = vla_request_body_get(req, 3);
@@ -680,6 +704,7 @@ int main(void)
     RUN_TEST(test_get_header_missing);
 
     RUN_TEST(test_get_body);
+    RUN_TEST(test_get_body_empty);
     RUN_TEST(test_get_body_length);
     RUN_TEST(test_get_body_length_gt);
     RUN_TEST(test_get_body_length_repeat);
