@@ -70,7 +70,7 @@ void test_strchrnul_empty()
 void test_url_encode()
 {
     const char *str = "test";
-    char *res = su_url_encode(str);
+    char *res = su_url_encode(NULL, str);
     TEST_ASSERT_NOT_NULL(res);
     TEST_ASSERT_EQUAL_STRING(str, res);
     talloc_free(res);
@@ -79,7 +79,7 @@ void test_url_encode()
 void test_url_encode_empty()
 {
     const char *str = "";
-    char *res = su_url_encode(str);
+    char *res = su_url_encode(NULL, str);
     TEST_ASSERT_NOT_NULL(res);
     TEST_ASSERT_EQUAL_STRING(str, res);
     talloc_free(res);
@@ -89,7 +89,7 @@ void test_url_encode_utf8()
 {
     const char *str = "/テスト/";
     const char *enc = "%2F%E3%83%86%E3%82%B9%E3%83%88%2F";
-    char *res = su_url_encode(str);
+    char *res = su_url_encode(NULL, str);
     TEST_ASSERT_NOT_NULL(res);
     TEST_ASSERT_EQUAL_STRING(enc, res);
     talloc_free(res);
@@ -99,7 +99,7 @@ void test_url_encode_capture_char()
 {
     const char *str = "/test/:";
     const char *enc = "%2Ftest%2F%3A";
-    char *res = su_url_encode(str);
+    char *res = su_url_encode(NULL, str);
     TEST_ASSERT_NOT_NULL(res);
     TEST_ASSERT_EQUAL_STRING(enc, res);
     talloc_free(res);
@@ -109,7 +109,7 @@ void test_url_encode_match_char()
 {
     const char *str = "/test/*";
     const char *enc = "%2Ftest%2F%2A";
-    char *res = su_url_encode(str);
+    char *res = su_url_encode(NULL, str);
     TEST_ASSERT_NOT_NULL(res);
     TEST_ASSERT_EQUAL_STRING(enc, res);
     talloc_free(res);
@@ -119,7 +119,7 @@ void test_url_encode_general()
 {
     const char *str = "/a real ながい string/:";
     const char *enc = "%2Fa+real+%E3%81%AA%E3%81%8C%E3%81%84+string%2F%3A";
-    char *res = su_url_encode(str);
+    char *res = su_url_encode(NULL, str);
     TEST_ASSERT_NOT_NULL(res);
     TEST_ASSERT_EQUAL_STRING(enc, res);
     talloc_free(res);
@@ -129,7 +129,7 @@ void test_url_encode_l()
 {
     const char *str = "/test/tea and :biscuits/";
     const char *enc = "%2Ftest%2Ftea+and+";
-    char *res = su_url_encode_l(str, strrchr(str, ':') - str);
+    char *res = su_url_encode_l(NULL, str, strrchr(str, ':') - str);
     TEST_ASSERT_NOT_NULL(res);
     TEST_ASSERT_EQUAL_STRING(enc, res);
     talloc_free(res);
@@ -139,7 +139,7 @@ void test_url_decode()
 {
     const char *enc = "%2F%E3%83%86%E3%82%B9%E3%83%88%2F";
     const char *dec = "/テスト/";
-    char *res = su_url_decode(enc);
+    char *res = su_url_decode(NULL, enc);
     TEST_ASSERT_NOT_NULL(res);
     TEST_ASSERT_EQUAL_STRING(dec, res);
     talloc_free(res);
@@ -149,7 +149,7 @@ void test_url_decode_empty()
 {
     const char *enc = "";
     const char *dec = "";
-    char *res = su_url_decode(enc);
+    char *res = su_url_decode(NULL, enc);
     TEST_ASSERT_NOT_NULL(res);
     TEST_ASSERT_EQUAL_STRING(dec, res);
     talloc_free(res);
@@ -159,7 +159,7 @@ void test_url_decode_general()
 {
     const char *enc = "%2Fa+real+%E3%81%AA%E3%81%8C%E3%81%84+string%2F%3A";
     const char *dec = "/a real ながい string/:";
-    char *res = su_url_decode(enc);
+    char *res = su_url_decode(NULL, enc);
     TEST_ASSERT_NOT_NULL(res);
     TEST_ASSERT_EQUAL_STRING(dec, res);
     talloc_free(res);
@@ -170,7 +170,7 @@ void test_url_decode_l()
     const char *enc = "%2Fa+real+%E3%81%AA%E3%81%8C%E3%81%84+string%2F%3A";
     size_t enc_l = sizeof("%2Fa+real+%E3%81%AA%E3%81%8C%E3%81%84+") - 1;
     const char *dec = "/a real ながい ";
-    char *res = su_url_decode_l(enc, enc_l);
+    char *res = su_url_decode_l(NULL, enc, enc_l);
     TEST_ASSERT_NOT_NULL(res);
     TEST_ASSERT_EQUAL_STRING(dec, res);
     talloc_free(res);

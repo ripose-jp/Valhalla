@@ -29,6 +29,7 @@
 
 #include <stdarg.h>
 #include <stdint.h>
+#include <string.h>
 
 #include <fcgiapp.h>
 #include <talloc.h>
@@ -73,6 +74,11 @@ vla_context *vla_init()
 int vla_free(void *ptr)
 {
     return talloc_free(ptr);
+}
+
+void vla_init_cookie(vla_cookie_t *cookie)
+{
+    bzero(cookie, sizeof(vla_cookie_t));
 }
 
 int vla_add_route(

@@ -59,6 +59,6 @@ static size_t hash_ignorecase(const char *str)
 
 #define strcase_str_hash_equal(a, b) (strcasecmp(a, b) == 0)
 
-KHASH_INIT(strcase, kh_cstr_t, char *, 1, hash_ignorecase, strcase_str_hash_equal);
+KHASH_INIT(strcase, kh_cstr_t, void *, 1, hash_ignorecase, strcase_str_hash_equal);
 
 #endif // __STRCASEMAP_H__

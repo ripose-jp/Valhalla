@@ -31,6 +31,6 @@
 
 #include "khash.h"
 
-KHASH_MAP_INIT_STR(str, char *);
+KHASH_MAP_INIT_STR(str, void *);
 
 #endif // __STRMAP_H__

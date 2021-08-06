@@ -31,6 +31,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <time.h>
 
 /*
  * Top-level context for Valhalla.
@@ -187,6 +188,47 @@ enum vla_handle_code
     VLA_HANDLE_IGNORE_TERM = 0,
 };
 
+/* Struct defining an HTTP cookie. */
+typedef struct vla_cookie_t
+{
+    /* The name of the cookie. Must be non-NULL. */
+    const char *name;
+
+    /* The value of the cookie. Must be non-NULL. */
+    const char *value;
+
+    /* The value of the 'Expires' cookie attribute in UTC.
+     * If 0, the Expires= attribute is not included.
+     */
+    time_t expires;
+
+    /* The value of the 'Max-Age' cookie attribute in seconds.
+     * If 0, the Max-Age= attribute is not included.
+     */
+    uint64_t maxage;
+
+    /* The value of the 'Domain' cookie attribute.
+     * Not included if the value is NULL.
+     */
+    const char *domain;
+
+    /* The value of the 'Path' cookie attribute.
+     * Not included if the value is NULL.
+     */
+    const char *path;
+
+    /* Includes the 'Secure' attribute if nonzero. */
+    int secure;
+
+    /* Includes the 'HttpOnly' attribute if nonzero. */
+    int httponly;
+
+    /* The value of the 'SameSite' cookie attribute.
+     * Not included if the value is NULL.
+     */
+    const char *samesite;
+} vla_cookie_t;
+
 /*
  *==============================================================================
  * General
@@ -208,6 +250,16 @@ vla_context *vla_init();
  * @return 0 on success, -1 on failure.
  */
 int vla_free(void *ptr);
+
+/**
+ * Initializes a cookie to its default values. By default, nothing is included
+ * and the name and value are NULL.
+ *
+ * No memory is dynamically allocated, so do not call vla_free on anything.
+ *
+ * @param[out] cookie The vla_cookie_t to initialize.
+ */
+void vla_init_cookie(vla_cookie_t *cookie);
 
 /**
  * Adds a new route. Routes cannot be deleted.
@@ -238,7 +290,7 @@ int vla_free(void *ptr);
  *                HTTP verb flags defined in the vla_http_method enum.
  *
  * @param route The location of the route. If a route contains a ':', everything
- *              after the colon up to the next '/' (or end of string if that
+ *              after the colon up to the next '/' (or end of the string if that
  *              comes first) is matched. If a route contains a '*', everything
  *              after that '*' is matched.
  *
@@ -485,59 +537,115 @@ enum vla_handle_code vla_request_next_func(vla_request *req);
  */
 
 /**
- * Adds a header to the response. Replaces it if it already exists.
+ * Adds a response header. Multiple headers with different value can be added.
+ * They will be sent in the response in the order they are added.
  *
  * @param req The request to add the response header to.
  *
  * @param header The name of the header. Not case sensative.
  *
- * @param value The value of the header.
+ * @param value The header value to add.
  *
- * @return 0 if the action occurred succesfully, nonzero on error.
+ * @param[out] ind The index of the added header. Can be NULL.
+ *
+ * @return 0 on success, -1 on failure.
  */
-int vla_response_header_insert(
+int vla_response_header_add(
+    vla_request *req,
+    const char *header,
+    const char *value,
+    size_t *ind);
+
+/**
+ * Replaces a header value.
+ *
+ * @param req The request to replace a header in.
+ *
+ * @param header The header value to replace. Not case sensative.
+ *
+ * @param value The value to insert.
+ *
+ * @param i The index of the header value to replace.
+ *
+ * @return 0 success, -1 if the header doesn't exist.
+ */
+int vla_response_header_replace(
+    vla_request *req,
+    const char *header,
+    const char *value,
+    size_t i);
+
+/**
+ * Replaces all header values with a single header value. Creates it if it
+ * doesn't exist.
+ *
+ * @param req The request to replace a header in.
+ *
+ * @param header The header value to replace. Not case sensative.
+ *
+ * @param value The value to insert.
+ *
+ * @return 0 on success, -1 on error.
+ */
+int vla_response_header_replace_all(
     vla_request *req,
     const char *header,
     const char *value);
 
 /**
- * Appends values to a response header in as a comma seperated list. Inserts the
- * header and value if it doesn't already exist.
- *
- * @param req The request to add the response header to.
- *
- * @param header The name of the header. Not case sensative.
- *
- * @param value The value to append to the header.
- *
- * @return 0 if the action occurred succesfully, nonzero on error.
- */
-int vla_response_header_append(
-    vla_request *req,
-    const char *header,
-    const char *value);
-
-/**
- * Removes the header from the response.
+ * Removes the header from the response. If there are multiple headers, they
+ * will be moved down, (e.g. if the header at index 0 is removed, a new header
+ * will be placed at index 0 if there are more than one header).
  *
  * @param req The request to remove the header from.
  *
- * @param header The header to remove.
+ * @param header The header to remove. Not case sensative.
+ *
+ * @param i The index of the header to remove.
  *
  * @return 0 if the header was successfully removed, -1 if it didn't exist.
  */
-int vla_response_header_remove(vla_request *req, const char *header);
+int vla_response_header_remove(vla_request *req, const char *header, size_t i);
 
 /**
- * Gets the value of the response header.
+ * Removes all of the specified headers.
+ *
+ * @param req The request to remove the header from.
+ *
+ * @param header The header to remove. Not case sensative.
+ *
+ * @return 0 if the header was successfully removed, -1 if it didn't exist.
+ */
+int vla_response_header_remove_all(vla_request *req, const char *header);
+
+/**
+ * Gets the value of a response header.
  *
  * @param req The request to get the response header from.
  *
- * @param header The header to get.
+ * @param header The header to get. Not case sensative.
  *
- * @return The value of the header, NULL if it doesn't exist.
+ * @param i The index of the header value.
+ *
+ * @return The value of the header, or NULL if it doesn't exist. Belongs to the
+ *         caller. Can be freed with vla_free or will be automatically freed
+ *         upon the completion of the request.
  */
-const char *vla_response_header_get(vla_request *req, const char *header);
+const char *vla_response_header_get(
+    vla_request *req,
+    const char *header,
+    size_t i);
+
+/**
+ * Gets the number of values associated with a header.
+ *
+ * @param req The request to get the header count from.
+ *
+ * @param header The header to get a count of. Not case sensative.
+ *
+ * @return The number of values associated with that header.
+ */
+size_t vla_response_header_count(vla_request *req, const char *header);
 
 /**
  * Sets the status code for this response.
@@ -580,6 +688,19 @@ int vla_response_set_content_type(vla_request *req, const char *type);
  * @return The value of the Content-Type header. NULL if it doesn't exist.
  */
 const char *vla_response_get_content_type(vla_request *req);
+
+/**
+ * Sets the Set-Cookie header. If the cookie already exists, doesn't replace it,
+ * just appends it to the Set-Cookie header. Values can be overwritten by
+ * manually setting the Set-Cookie header, so be careful.
+ *
+ * @param req The request to add the cookie header to.
+ *
+ * @param cookie The vla_cookie_t defining the cookie to set.
+ *
+ * @return 0 on success, nonzero on error.
+ */
+int vla_response_set_cookie(vla_request *req, const vla_cookie_t *cookie);
 
 /**
  * Appends data to the body of a response. Data is buffered and not actually

@@ -41,6 +41,27 @@ const char *su_strchrnul(const char *s, int c)
     return s;
 }
 
+char *su_tstrndup(void *ctx, const char *str, size_t len)
+{
+    size_t size = 0;
+    while (size < len && str[size])
+    {
+        ++size;
+    }
+    char *cpy = talloc_array(ctx, char, size + 1);
+    strncpy(cpy, str, size);
+    cpy[size] = '\0';
+    return cpy;
+}
+
+char *su_tstrdup(void *ctx, const char *str)
+{
+    size_t size = strlen(str);
+    char *cpy = talloc_array(ctx, char, size + 1);
+    strcpy(cpy, str);
+    return cpy;
+}
+
 /**
  * URL encoding/decoding credit goes to Fred Bulback.
  * https://www.geekhideout.com/urlcode.shtml
@@ -75,11 +96,11 @@ static char to_hex(char code)
     return hex[code & NIBBLE_MASK];
 }
 
-char *su_url_encode_l(const char *str, size_t len)
+char *su_url_encode_l(void *ctx, const char *str, size_t len)
 {
     const char *pstr = str;
     const char *pstr_end = &str[len];
-    char *buf = talloc_array(NULL, char, len * 3 + 1);
+    char *buf = talloc_array(ctx, char, len * 3 + 1);
     char *pbuf = buf;
     while (pstr < pstr_end)
     {
@@ -107,16 +128,16 @@ char *su_url_encode_l(const char *str, size_t len)
     return buf;
 }
 
-char *su_url_encode(const char *str)
+char *su_url_encode(void *ctx, const char *str)
 {
-    return su_url_encode_l(str, strlen(str));
+    return su_url_encode_l(ctx, str, strlen(str));
 }
 
-char *su_url_decode_l(const char *str, size_t len)
+char *su_url_decode_l(void *ctx, const char *str, size_t len)
 {
     const char *pstr = str;
     const char *pstr_end = &str[len];
-    char *buf = talloc_array(NULL, char, len + 1);
+    char *buf = talloc_array(ctx, char, len + 1);
     char *pbuf = buf;
     while (pstr < pstr_end)
     {
@@ -142,9 +163,9 @@ char *su_url_decode_l(const char *str, size_t len)
     return buf;
 }
 
-char *su_url_decode(const char *str)
+char *su_url_decode(void *ctx, const char *str)
 {
-    return su_url_decode_l(str, strlen(str));
+    return su_url_decode_l(ctx, str, strlen(str));
 }
 
 #undef NIBBLE_MASK

@@ -28,6 +28,7 @@
 #include "request.h"
 
 #include <assert.h>
+#include <time.h>
 
 #include <fcgiapp.h>
 #include <talloc.h>
@@ -118,11 +119,106 @@ typedef struct vla_request_private
     size_t mw_i;
 } vla_request_private;
 
+/* An struct for managing header values. */
+typedef struct header_value_array
+{
+    /* The number of elements in the array. */
+    size_t size;
+
+    /* The array. The maximum capacity can be found with talloc_array_length. */
+    char **arr;
+} header_array;
+
 /*
  *==============================================================================
  * Private
  *==============================================================================
  */
+
+/**
+ * Initializes a header_array.
+ *
+ * @param ctx The talloc context this array should be a child of.
+ *
+ * @param cap The initial capacity of the array.
+ *
+ * @return A new header_value_array with an initial capacity of cap.
+ */
+static header_array *init_header_array(void *ctx, size_t cap)
+{
+    header_array *ha = talloc(ctx, header_array);
+    ha->size = 0;
+    ha->arr = talloc_array(ha, char *, cap);
+    return ha;
+}
+
+/**
+ * Appends a value to the array.
+ *
+ * @param ha The header_array to push a value onto.
+ *
+ * @param val The value to push onto the array. Must be talloc allocated.
+ *            Takes ownership.
+ */
+static void header_array_push(header_array *ha, char *val)
+{
+    size_t cap = talloc_array_length(ha->arr);
+    if (ha->size >= cap)
+    {
+        ha->arr = talloc_realloc(ha, ha->arr, char *, cap * 2);
+    }
+    talloc_steal(ha->arr, val);
+    ha->arr[ha->size++] = val;
+}
+
+/**
+ * Replaces the value at an index.
+ *
+ * @param ha The header array to replace the value in.
+ *
+ * @param i The index of the value.
+ *
+ * @param val The value to insert. Must be talloc allocated. Takes ownership.
+ */
+static void header_array_replace(header_array *ha, size_t i, char *val)
+{
+    talloc_free(ha->arr[i]);
+    talloc_steal(ha->arr, val);
+    ha->arr[i] = val;
+}
+
+/**
+ * Removes the value at index i from the array and frees it.
+ *
+ * @param ha The header array to remove a value from.
+ *
+ * @param i The index of the item to remove. Must be less than size.
+ */
+static void header_array_remove(header_array *ha, size_t i)
+{
+    assert(i < ha->size);
+    talloc_free(ha->arr[i]);
+    --ha->size;
+    while (i < ha->size)
+    {
+        ha->arr[i] = ha->arr[i + 1];
+        ++i;
+    }
+}
+
+/**
+ * Removes all values from the header array and deallocates memory.
+ *
+ * @param ha The header array to remove values from.
+ */
+static void header_array_clear(header_array *ha)
+{
+    for (size_t i = 0; i < ha->size; ++i)
+    {
+        talloc_free(ha->arr[i]);
+    }
+    ha->size = 0;
+}
 
 /**
  * Destructor for vla_request.
@@ -165,11 +261,8 @@ static void pop_query_map(vla_request *req, const char *query)
         const char *valendptr = su_strchrnul(val, '&');
         size_t vallen = valendptr - val;
 
-        char *t_key = su_url_decode_l(key, keylen);
-        talloc_steal(req, t_key);
-
-        char *t_val = su_url_decode_l(val, vallen);
-        talloc_steal(req, t_val);
+        char *t_key = su_url_decode_l(req, key, keylen);
+        char *t_val = su_url_decode_l(req, val, vallen);
 
         int ret = 0;
         khiter_t it = kh_put(str, map, t_key, &ret);
@@ -181,10 +274,12 @@ static void pop_query_map(vla_request *req, const char *query)
             break;
 
         case 1: // Key doesn't exist
+        case 2: // Key did exist, since deleted
             kh_key(map, it) = t_key;
             break;
 
         case -1: // Error
+        default:
             talloc_free(t_key);
             talloc_free(t_val);
             /* TODO: Logging */
@@ -201,52 +296,6 @@ static void pop_query_map(vla_request *req, const char *query)
 }
 
 /**
- * Inserts a header into the hash table. Replaces it if it already exists.
- *
- * @param req The request associated with this. Used for memory management.
- *
- * @param map The map to append the header to.
- *
- * @param header The header to add. Not case sensative. Copied to the heap, so
- *               this function does NOT take ownership.
- *
- * @param value The header value to add. Copied to the heap, so this function
- *              does NOT take ownership.
- *
- * @return 0 on success, -1 on failure.
- */
-static int header_insert(
-    vla_request *req,
-    khash_t(strcase) *map,
-    const char *header,
-    const char *value)
-{
-    int ret = 0;
-    khiter_t it = kh_put(strcase, map, header, &ret);
-    switch (ret)
-    {
-    case 0: // Key exists
-        talloc_free(kh_val(map, it));
-        break;
-
-    case 1: // Key doesn't exist
-        char *key = talloc_array(req, char, strlen(header) + 1);
-        strcpy(key, header);
-        kh_key(map, it) = key;
-        break;
-
-    case -1: // Error
-        return -1;
-    }
-
-    char *val = talloc_array(req, char, strlen(value) + 1);
-    strcpy(val, value);
-    kh_val(map, it) = val;
-
-    return 0;
-}
-
-/**
  * Appends a header to a map. Inserts it if it doesn't exist.
  *
  * @param req The request associated with this. Used for memory management.
@@ -259,47 +308,46 @@ static int header_insert(
  * @param value The header value to append. Copied to the heap, so this function
  *              does NOT take ownership.
  *
+ * @param[out] ind The index of the added header. Can be NULL.
+ *
  * @return 0 on success, -1 on error.
  */
-static int header_append(
+static int header_add(
     vla_request *req,
     khash_t(strcase) *map,
     const char *header,
-    const char *value)
+    const char *value,
+    size_t *ind)
 {
     int ret;
     khiter_t it = kh_put(strcase, map, header, &ret);
     switch (ret)
     {
     case 0: // Key exists
-    {
-        char *val = kh_val(map, it);
-        size_t old_val_len = talloc_array_length(val);
-        size_t new_val_len = old_val_len + strlen(value) + 1;
-        val = talloc_realloc(req, val, char, new_val_len);
-        val[old_val_len - 1] = ',';
-        strcpy(&val[old_val_len], value);
-        return 0;
-    }
+        break;
 
     case 1: // Key doesn't exist
+    case 2: // Key did exist, doesn't anymore
+        kh_key(map, it) = su_tstrdup(req, header);
+        kh_val(map, it) = init_header_array((void *)kh_key(map, it), 1);
+        break;
+
+    default: // Error
+        return -1;
+    }
+
+    header_array *ha = kh_val(map, it);
+    header_array_push(ha, su_tstrdup((void *)kh_key(map, it), value));
+    if (ind)
     {
-        char *key = talloc_array(req, char, strlen(header) + 1);
-        strcpy(key, header);
-        kh_key(map, it) = key;
-
-        char *val = talloc_array(req, char, strlen(value) + 1);
-        strcpy(val, value);
-        kh_val(map, it) = val;
-        return 0;
-    }
+        *ind = ha->size - 1;
     }
 
-    return -1;
+    return 0;
 }
 
 /**
- * Deletes a header from the map.
+ * Removes all header values for the supplied header from the map.
  *
  * @param map The map to delete the header from.
  *
@@ -307,7 +355,7 @@ static int header_append(
  *
  * @return 0 on success, -1 if the header doesn't exist.
  */
-static int header_delete(khash_t(strcase) *map, const char *header)
+static int header_remove_all(khash_t(strcase) *map, const char *header)
 {
     khiter_t it = kh_get(strcase, map, header);
     if (it == kh_end(map))
@@ -315,13 +363,48 @@ static int header_delete(khash_t(strcase) *map, const char *header)
         return -1;
     }
 
-    const char *key = kh_key(map, it);
-    char *val = kh_val(map, it);
-
+    talloc_free((char *)kh_key(map, it));
     kh_del(strcase, map, it);
 
-    talloc_free((char *)key);
-    talloc_free(val);
+    return 0;
+}
+
+/**
+ * Removes a specific header and value from the map.
+ *
+ * @param map The map to delete the header from.
+ *
+ * @param header The header to delete. Not case sensative.
+ *
+ * @param i The index of the header to remove.
+ *
+ * @return 0 on success, -1 if the header/value doesn't exist.
+ */
+static int header_remove(
+    khash_t(strcase) *map,
+    const char *header,
+    size_t i)
+{
+    khiter_t it = kh_get(strcase, map, header);
+    if (it == kh_end(map))
+    {
+        return -1;
+    }
+
+    header_array *ha = kh_val(map, it);
+    if (i >= ha->size)
+    {
+        return -1;
+    }
+    header_array_remove(ha, i);
+
+    /* If that was the only value associated with this header, free the header
+     * as well. */
+    if (ha->size == 0)
+    {
+        talloc_free((char *)kh_key(map, it));
+        kh_del(strcase, map, it);
+    }
 
     return 0;
 }
@@ -356,7 +439,7 @@ static int request_add_header(vla_request *req, const char *envstr)
     }
     header[sizeof(header) - 1] = '\0';
 
-    return header_insert(req, req->priv->req_hdr_map, header, val);
+    return header_add(req, req->priv->req_hdr_map, header, val, NULL);
 }
 
 /**
@@ -545,9 +628,14 @@ int response_header_iterate(
     khash_t(strcase) *map = req->priv->res_hdr_map;
     for (khiter_t it = 0; it < kh_end(map); ++it)
     {
-        if (kh_exist(map, it))
+        if (!kh_exist(map, it))
         {
-            if (callback(kh_key(map, it), kh_val(map, it), arg))
+            continue;
+        }
+        header_array *ha = kh_val(map, it);
+        for (size_t i = 0; i < ha->size; ++i)
+        {
+            if (callback(kh_key(map, it), ha->arr[i], arg))
             {
                 return -1;
             }
@@ -609,7 +697,8 @@ const char *vla_request_header_get(vla_request *req, const char *header)
     {
         return NULL;
     }
-    return kh_val(req->priv->req_hdr_map, it);
+    header_array *ha = kh_val(req->priv->req_hdr_map, it);
+    return ha->arr[0];
 }
 
 int vla_request_header_iterate(
@@ -721,35 +810,96 @@ enum vla_handle_code vla_request_next_func(vla_request *req)
  *==============================================================================
  */
 
-int vla_response_header_insert(
+int vla_response_header_add(
+    vla_request *req,
+    const char *header,
+    const char *value,
+    size_t *ind)
+{
+    return header_add(req, req->priv->res_hdr_map, header, value, ind);
+}
+
+int vla_response_header_replace(
+    vla_request *req,
+    const char *header,
+    const char *value,
+    size_t i)
+{
+    khash_t(strcase) *map = req->priv->res_hdr_map;
+
+    khiter_t it = kh_get(strcase, map, header);
+    if (it == kh_end(map))
+    {
+        return -1;
+    }
+
+    header_array *ha = kh_val(map, it);
+    if (i >= ha->size)
+    {
+        return -1;
+    }
+    header_array_replace(ha, i, su_tstrdup(NULL, value));
+
+    return 0;
+}
+
+int vla_response_header_replace_all(
     vla_request *req,
     const char *header,
     const char *value)
 {
-    return header_insert(req, req->priv->res_hdr_map, header, value);
+    khash_t(strcase) *map = req->priv->res_hdr_map;
+
+    khiter_t it = kh_get(strcase, map, header);
+    if (it == kh_end(map))
+    {
+        return vla_response_header_add(req, header, value, NULL);
+    }
+
+    header_array *ha = kh_val(map, it);
+    header_array_clear(ha);
+    header_array_push(ha, su_tstrdup(NULL, value));
+
+    return 0;
 }
 
-int vla_response_header_append(
+int vla_response_header_remove(vla_request *req, const char *header, size_t i)
+{
+    return header_remove(req->priv->res_hdr_map, header, i);
+}
+
+int vla_response_header_remove_all(vla_request *req, const char *header)
+{
+    return header_remove_all(req->priv->res_hdr_map, header);
+}
+
+const char *vla_response_header_get(
     vla_request *req,
     const char *header,
-    const char *value)
-{
-    return header_append(req, req->priv->res_hdr_map, header, value);
-}
-
-int vla_response_header_remove(vla_request *req, const char *header)
-{
-    return header_delete(req->priv->res_hdr_map, header);
-}
-
-const char *vla_response_header_get(vla_request *req, const char *header)
+    size_t i)
 {
     khiter_t it = kh_get(strcase, req->priv->res_hdr_map, header);
     if (it == kh_end(req->priv->res_hdr_map))
     {
         return NULL;
     }
-    return kh_val(req->priv->res_hdr_map, it);
+    header_array *ha = kh_val(req->priv->res_hdr_map, it);
+    if (i >= ha->size)
+    {
+        return NULL;
+    }
+    return su_tstrdup(req, ha->arr[i]);
+}
+
+size_t vla_response_header_count(vla_request *req, const char *header)
+{
+    khiter_t it = kh_get(strcase, req->priv->res_hdr_map, header);
+    if (it == kh_end(req->priv->res_hdr_map))
+    {
+        return 0;
+    }
+    header_array *ha = kh_val(req->priv->res_hdr_map, it);
+    return ha->size;
 }
 
 int vla_response_set_status_code(vla_request *req, unsigned int code)
@@ -758,7 +908,7 @@ int vla_response_set_status_code(vla_request *req, unsigned int code)
     char buf[33];
     snprintf(buf, sizeof(buf) - 1, "%u", code);
     buf[sizeof(buf) - 1] = '\0';
-    return vla_response_header_insert(req, "Status", buf);
+    return vla_response_header_replace_all(req, "Status", buf);
 }
 
 unsigned int vla_response_get_status_code(vla_request *req)
@@ -768,12 +918,60 @@ unsigned int vla_response_get_status_code(vla_request *req)
 
 int vla_response_set_content_type(vla_request *req, const char *type)
 {
-    return vla_response_header_insert(req, "Content-Type", type);
+    return vla_response_header_replace_all(req, "Content-Type", type);
 }
 
 const char *vla_response_get_content_type(vla_request *req)
 {
-    return vla_response_header_get(req, "Content-Type");
+    return vla_response_header_get(req, "Content-Type", 0);
+}
+
+int vla_response_set_cookie(vla_request *req, const vla_cookie_t *cookie)
+{
+    if (cookie->name == NULL || cookie->value == NULL)
+    {
+        return -1;
+    }
+
+    sds buf = sdsempty();
+    buf = sdscatfmt(buf, "%s=%s", cookie->name, cookie->value);
+    if (cookie->expires)
+    {
+        struct tm utc;
+        gmtime_r(&cookie->expires, &utc);
+        char timestr[1024];
+        strftime(timestr, sizeof(timestr), "%a, %d %b %Y %H:%M:%S %Z", &utc);
+        timestr[sizeof(timestr) - 1] = '\0';
+
+        buf = sdscatfmt(buf, "; Expires=%s", timestr);
+    }
+    if (cookie->maxage)
+    {
+        buf = sdscatfmt(buf, "; Max-Age=%U", cookie->maxage);
+    }
+    if (cookie->domain)
+    {
+        buf = sdscatfmt(buf, "; Domain=%s", cookie->domain);
+    }
+    if (cookie->path)
+    {
+        buf = sdscatfmt(buf, "; Path=%s", cookie->path);
+    }
+    if (cookie->secure)
+    {
+        buf = sdscat(buf, "; Secure");
+    }
+    if (cookie->httponly)
+    {
+        buf = sdscat(buf, "; HttpOnly");
+    }
+    if (cookie->samesite)
+    {
+        buf = sdscatfmt(buf, "; SameSite=%s", cookie->samesite);
+    }
+    int ret = vla_response_header_add(req, "Set-Cookie", buf, NULL);
+    sdsfree(buf);
+    return ret;
 }
 
 void vla_printf(vla_request *req, const char *fmt, ...)

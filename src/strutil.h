@@ -44,47 +44,77 @@
 const char *su_strchrnul(const char *s, int c);
 
 /**
- * Encodes a string into a URL-encoded string.
+ * Duplicates the first len characters of a string.
  *
- * @param str The string to URL encode.
+ * @param ctx The talloc context to the string should be a child of.
  *
- * @return The string encoded into URL-encoding. Allocated by talloc with no
- *         parent. Belongs to the caller.
+ * @param str The string to duplicate.
+ *
+ * @param len The maximum number of characters to duplicate.
+ *
+ * @return A talloc allocated string that is a child of ctx.
  */
-char *su_url_encode(const char *str);
+char *su_tstrndup(void *ctx, const char *str, size_t len);
+
+/**
+ * Duplicates a string.
+ *
+ * @param ctx The talloc context to the string should be a child of.
+ *
+ * @param str The string to duplicate.
+ *
+ * @param len The maximum number of characters to duplicate.
+ *
+ * @return A talloc allocated string that is a child of ctx.
+ */
+char *su_tstrdup(void *ctx, const char *str);
 
 /**
  * Encodes a string into a URL-encoded string.
+ *
+ * @param ctx The talloc context the string should belong to.
+ *
+ * @param str The string to URL encode.
+ *
+ * @return The string encoded into URL-encoding.
+ */
+char *su_url_encode(void *ctx, const char *str);
+
+/**
+ * Encodes a string into a URL-encoded string.
+ *
+ * @param ctx The talloc context the string should belong to.
  *
  * @param str The string to URL encode.
  *
  * @param len The length of the string.
  *
- * @return The string encoded into URL-encoding. Allocated by talloc with no
- *         parent. Belongs to the caller.
+ * @return The string encoded into URL-encoding.
  */
-char *su_url_encode_l(const char *str, size_t len);
+char *su_url_encode_l(void *ctx, const char *str, size_t len);
 
 /**
  * Decodes a URL-encoded string.
+ *
+ * @param ctx The talloc context the string should belong to.
  *
  * @param str The URL-encoded string to decode.
  *
- * @return A URL decoded into UTF-8. Allocated by talloc with no parent.
- *         Belongs to the caller.
+ * @return A URL decoded into UTF-8.
  */
-char *su_url_decode(const char *str);
+char *su_url_decode(void *ctx, const char *str);
 
 /**
  * Decodes a URL-encoded string.
+ *
+ * @param ctx The talloc context the string should belong to.
  *
  * @param str The URL-encoded string to decode.
  *
  * @param len The length of the string.
  *
- * @return A URL decoded into UTF-8. Allocated by talloc with no parent.
- *         Belongs to the caller.
+ * @return A URL decoded into UTF-8.
  */
-char *su_url_decode_l(const char *str, size_t len);
+char *su_url_decode_l(void *ctx, const char *str, size_t len);
 
 #endif // __STRUTIL_H__

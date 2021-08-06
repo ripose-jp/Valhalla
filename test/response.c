@@ -103,6 +103,54 @@ void tearDown(void)
     res_body = NULL;
 }
 
+typedef struct netscape_cookie_t
+{
+    char route[1024];
+    int include_subdomains;
+    char path[1024];
+    int secure;
+    long expiry;
+    char name[1024];
+    char value[1024];
+} netscape_cookie_t;
+
+void helper_convert_cookie(const char *raw, netscape_cookie_t *cookie)
+{
+    const char *term = strchr(raw, '\t');
+    size_t l = term - raw;
+    strncpy(cookie->route, raw, l);
+    cookie->route[l] = '\0';
+    raw = term + 1;
+
+    cookie->include_subdomains = *raw == 'T';
+    raw = strchr(raw, '\t') + 1;
+
+    term = strchr(raw, '\t');
+    l = term - raw;
+    strncpy(cookie->path, raw, l);
+    cookie->path[l] = '\0';
+    raw = term + 1;
+
+    cookie->secure = *raw == 'T';
+    raw = strchr(raw, '\t') + 1;
+
+    term = strchr(raw, '\t');
+    l = term - raw;
+    char buf[128];
+    strncpy(buf, raw, l);
+    buf[l] = '\0';
+    cookie->expiry = strtol(buf, NULL, 10);
+    raw = term + 1;
+
+    term = strchr(raw, '\t');
+    l = term - raw;
+    strncpy(cookie->name, raw, l);
+    cookie->name[l] = '\0';
+    raw = term + 1;
+
+    strcpy(cookie->value, raw);
+}
+
 /* Reads the body of the request into res_body. */
 static size_t read_header(void *data, size_t size, size_t nmemb, void *nul)
 {
@@ -148,6 +196,8 @@ static void *thread_send_request(void *arg)
     curl_easy_setopt(c, CURLOPT_HEADERFUNCTION, read_header);
     curl_easy_setopt(c, CURLOPT_WRITEFUNCTION, read_body);
 
+    curl_easy_setopt(c, CURLOPT_COOKIEFILE, "");
+
     CURLcode code = curl_easy_perform(c);
     TEST_ASSERT_EQUAL(CURLE_OK, code);
 
@@ -178,22 +228,48 @@ void helper_header_value_exists(const char *hdr, const char *val)
     const char *actual_hdr = NULL;
     for (size_t i = 0; i < res_hdrs_size; ++i)
     {
-        if (strncasecmp(res_hdrs[i], hdr, hdr_l) == 0)
+        if (strncasecmp(res_hdrs[i], hdr, hdr_l))
         {
-            TEST_ASSERT_NULL(actual_hdr);
-            actual_hdr = res_hdrs[i];
+            continue;
         }
+        const char *actual_val = &res_hdrs[i][hdr_l];
+        if (strncmp(actual_val, val, val_l))
+        {
+            continue;
+        }
+        return;
     }
-    TEST_ASSERT_NOT_NULL(actual_hdr);
-
-    int cmp = strncasecmp(actual_hdr, hdr, hdr_l);
-    TEST_ASSERT_EQUAL_INT(0, cmp);
-
-    const char *actual_val = &actual_hdr[hdr_l];
-    cmp = strncasecmp(actual_val, val, val_l);
-    TEST_ASSERT_EQUAL_INT(0, cmp);
+    TEST_ASSERT_NOT_NULL_MESSAGE(NULL, "Header didn't exist");
 }
 
+/**
+ * Verifies a header (not case sensative) and value (case sensative) combination
+ * doesn't exist.
+ */
+void helper_header_value_not_exist(const char *hdr, const char *val)
+{
+    size_t hdr_l = strlen(hdr);
+    size_t val_l = strlen(val);
+
+    const char *actual_hdr = NULL;
+    for (size_t i = 0; i < res_hdrs_size; ++i)
+    {
+        if (strncasecmp(res_hdrs[i], hdr, hdr_l))
+        {
+            continue;
+        }
+        const char *actual_val = &res_hdrs[i][hdr_l];
+        if (strncmp(actual_val, val, val_l))
+        {
+            continue;
+        }
+        TEST_ASSERT_NOT_NULL_MESSAGE(NULL, "Header did exist");
+    }
+}
+
+/**
+ * Verifies that a header does not exist with any value.
+ */
 void helper_header_not_exist(const char *hdr)
 {
     size_t hdr_l = strlen(hdr);
@@ -207,19 +283,19 @@ void helper_header_not_exist(const char *hdr)
     }
 }
 
-enum vla_handle_code handler_header_insert(vla_request *req, void *nul)
+enum vla_handle_code handler_header_add(vla_request *req, void *nul)
 {
-    int ret = vla_response_header_insert(req, "X-Test-Header", "Cheese");
+    int ret = vla_response_header_add(req, "X-Test-Header", "Cheese", NULL);
     TEST_ASSERT_EQUAL_INT(0, ret);
     return VLA_HANDLE_RESPOND_TERM;
 }
 
-void test_header_insert()
+void test_header_add()
 {
     int ret = vla_add_route(
         ctx,
         VLA_HTTP_GET, "/response",
-        handler_header_insert, NULL,
+        handler_header_add, NULL,
         NULL
     );
     TEST_ASSERT_EQUAL_INT(0, ret);
@@ -229,11 +305,90 @@ void test_header_insert()
     helper_header_value_exists("x-test-header: ", "Cheese");
 }
 
+enum vla_handle_code handler_header_add_duplicate(vla_request *req, void *nul)
+{
+    int ret = vla_response_header_add(req, "X-Test-Header", "Cheese", NULL);
+    TEST_ASSERT_EQUAL_INT(0, ret);
+    ret = vla_response_header_add(req, "X-Test-Header", "Tacos", NULL);
+    TEST_ASSERT_EQUAL_INT(0, ret);
+    return VLA_HANDLE_RESPOND_TERM;
+}
+
+void test_header_add_duplicate()
+{
+    int ret = vla_add_route(
+        ctx,
+        VLA_HTTP_GET, "/response",
+        handler_header_add_duplicate, NULL,
+        NULL
+    );
+    TEST_ASSERT_EQUAL_INT(0, ret);
+
+    start_request();
+
+    helper_header_value_exists("x-test-header: ", "Cheese");
+    helper_header_value_exists("x-test-header: ", "Tacos");
+}
+
+enum vla_handle_code handler_header_add_index(vla_request *req, void *nul)
+{
+    size_t i = -1;
+    int ret = vla_response_header_add(req, "X-Test-Header", "Cheese", &i);
+    TEST_ASSERT_EQUAL_INT(0, ret);
+    TEST_ASSERT_EQUAL_size_t(0, i);
+    ret = vla_response_header_add(req, "X-Test-Header", "Tacos", &i);
+    TEST_ASSERT_EQUAL_INT(0, ret);
+    TEST_ASSERT_EQUAL_size_t(1, i);
+    return VLA_HANDLE_RESPOND_TERM;
+}
+
+void test_header_add_index()
+{
+    int ret = vla_add_route(
+        ctx,
+        VLA_HTTP_GET, "/response",
+        handler_header_add_index, NULL,
+        NULL
+    );
+    TEST_ASSERT_EQUAL_INT(0, ret);
+
+    start_request();
+
+    helper_header_value_exists("x-test-header: ", "Cheese");
+    helper_header_value_exists("x-test-header: ", "Tacos");
+}
+
+enum vla_handle_code handler_header_add_multi(vla_request *req, void *nul)
+{
+    int ret = vla_response_header_add(req, "X-Test-Header", "Cheese", NULL);
+    TEST_ASSERT_EQUAL_INT(0, ret);
+    ret = vla_response_header_add(req, "X-Best-Header", "Tacos", NULL);
+    TEST_ASSERT_EQUAL_INT(0, ret);
+    return VLA_HANDLE_RESPOND_TERM;
+}
+
+void test_header_add_multi()
+{
+    int ret = vla_add_route(
+        ctx,
+        VLA_HTTP_GET, "/response",
+        handler_header_add_multi, NULL,
+        NULL
+    );
+    TEST_ASSERT_EQUAL_INT(0, ret);
+
+    start_request();
+
+    helper_header_value_exists("x-test-header: ", "Cheese");
+    helper_header_value_exists("x-best-header: ", "Tacos");
+}
+
 enum vla_handle_code handler_header_replace(vla_request *req, void *nul)
 {
-    int ret = vla_response_header_insert(req, "X-Test-Header", "Cheese");
+    size_t i;
+    int ret = vla_response_header_add(req, "X-Test-Header", "Cheese", &i);
     TEST_ASSERT_EQUAL_INT(0, ret);
-    ret = vla_response_header_insert(req, "X-Test-Header", "Tomato");
+    ret = vla_response_header_replace(req, "X-Test-Header", "Tacos", i);
     TEST_ASSERT_EQUAL_INT(0, ret);
     return VLA_HANDLE_RESPOND_TERM;
 }
@@ -250,72 +405,51 @@ void test_header_replace()
 
     start_request();
 
-    helper_header_value_exists("x-test-header: ", "Tomato");
+    helper_header_value_exists("x-test-header: ", "Tacos");
 }
 
-enum vla_handle_code handler_header_append(vla_request *req, void *nul)
+enum vla_handle_code handler_header_replace_not_exist(
+    vla_request *req,
+    void *nul)
 {
-    int ret = vla_response_header_append(req, "X-Test-Header", "Cheese");
-    TEST_ASSERT_EQUAL_INT(0, ret);
-    ret = vla_response_header_append(req, "X-Test-Header", "Tomato");
-    TEST_ASSERT_EQUAL_INT(0, ret);
+    int ret = vla_response_header_replace(req, "X-Test-Header", "Tacos", 0);
+    TEST_ASSERT_EQUAL_INT(-1, ret);
     return VLA_HANDLE_RESPOND_TERM;
 }
 
-void test_header_append()
+void test_header_replace_not_exist()
 {
     int ret = vla_add_route(
         ctx,
         VLA_HTTP_GET, "/response",
-        handler_header_append, NULL,
+        handler_header_replace_not_exist, NULL,
         NULL
     );
     TEST_ASSERT_EQUAL_INT(0, ret);
 
     start_request();
 
-    helper_header_value_exists("x-test-header: ", "Cheese,Tomato");
+    helper_header_not_exist("x-test-header: ");
 }
 
-enum vla_handle_code handler_header_append_multi(vla_request *req, void *nul)
+enum vla_handle_code handler_header_replace_wrong_index(
+    vla_request *req,
+    void *nul)
 {
-    int ret = vla_response_header_append(req, "X-Test-Header", "Cheese");
+    size_t i = -1;
+    int ret = vla_response_header_add(req, "X-Test-Header", "Cheese", &i);
     TEST_ASSERT_EQUAL_INT(0, ret);
-    ret = vla_response_header_append(req, "X-Test-Header", "Tomato");
-    TEST_ASSERT_EQUAL_INT(0, ret);
-    ret = vla_response_header_append(req, "X-Test-Header", "Bacon");
-    TEST_ASSERT_EQUAL_INT(0, ret);
+    ret = vla_response_header_replace(req, "X-Test-Header", "Tacos", i + 1);
+    TEST_ASSERT_EQUAL_INT(-1, ret);
     return VLA_HANDLE_RESPOND_TERM;
 }
 
-void test_header_append_multi()
+void test_header_replace_wrong_index()
 {
     int ret = vla_add_route(
         ctx,
         VLA_HTTP_GET, "/response",
-        handler_header_append_multi, NULL,
-        NULL
-    );
-    TEST_ASSERT_EQUAL_INT(0, ret);
-
-    start_request();
-
-    helper_header_value_exists("x-test-header: ", "Cheese,Tomato,Bacon");
-}
-
-enum vla_handle_code handler_header_append_single(vla_request *req, void *nul)
-{
-    int ret = vla_response_header_append(req, "X-Test-Header", "Cheese");
-    TEST_ASSERT_EQUAL_INT(0, ret);
-    return VLA_HANDLE_RESPOND_TERM;
-}
-
-void test_header_append_single()
-{
-    int ret = vla_add_route(
-        ctx,
-        VLA_HTTP_GET, "/response",
-        handler_header_append_single, NULL,
+        handler_header_replace_wrong_index, NULL,
         NULL
     );
     TEST_ASSERT_EQUAL_INT(0, ret);
@@ -325,21 +459,109 @@ void test_header_append_single()
     helper_header_value_exists("x-test-header: ", "Cheese");
 }
 
-enum vla_handle_code handler_header_delete(vla_request *req, void *nul)
+enum vla_handle_code handler_header_replace_all(vla_request *req, void *nul)
 {
-    int ret = vla_response_header_insert(req, "X-Test-Header", "Cheese");
+    int ret = vla_response_header_add(req, "X-Test-Header", "Cheese", NULL);
     TEST_ASSERT_EQUAL_INT(0, ret);
-    ret = vla_response_header_remove(req, "X-Test-Header");
+    ret = vla_response_header_add(req, "X-Test-Header", "Tacos", NULL);
+    TEST_ASSERT_EQUAL_INT(0, ret);
+    ret = vla_response_header_replace_all(req, "X-Test-Header", "Chicken");
     TEST_ASSERT_EQUAL_INT(0, ret);
     return VLA_HANDLE_RESPOND_TERM;
 }
 
-void test_header_delete()
+void test_header_replace_all()
 {
     int ret = vla_add_route(
         ctx,
         VLA_HTTP_GET, "/response",
-        handler_header_delete, NULL,
+        handler_header_replace_all, NULL,
+        NULL
+    );
+    TEST_ASSERT_EQUAL_INT(0, ret);
+
+    start_request();
+
+    helper_header_value_not_exist("x-test-header: ", "Cheese");
+    helper_header_value_not_exist("x-test-header: ", "Tacos");
+    helper_header_value_exists("x-test-header: ", "Chicken");
+}
+
+enum vla_handle_code handler_header_replace_all_none(
+    vla_request *req,
+    void *nul)
+{
+    int ret = vla_response_header_replace_all(req, "X-Test-Header", "Chicken");
+    TEST_ASSERT_EQUAL_INT(0, ret);
+    return VLA_HANDLE_RESPOND_TERM;
+}
+
+void test_header_replace_all_none()
+{
+    int ret = vla_add_route(
+        ctx,
+        VLA_HTTP_GET, "/response",
+        handler_header_replace_all_none, NULL,
+        NULL
+    );
+    TEST_ASSERT_EQUAL_INT(0, ret);
+
+    start_request();
+
+    helper_header_value_exists("x-test-header: ", "Chicken");
+}
+
+enum vla_handle_code handler_header_replace_all_multi(
+    vla_request *req,
+    void *nul)
+{
+    int ret = vla_response_header_add(req, "X-Test-Header", "Cheese", NULL);
+    TEST_ASSERT_EQUAL_INT(0, ret);
+    ret = vla_response_header_add(req, "X-Test-Header", "Tacos", NULL);
+    TEST_ASSERT_EQUAL_INT(0, ret);
+    ret = vla_response_header_replace_all(req, "X-Test-Header", "Chicken");
+    TEST_ASSERT_EQUAL_INT(0, ret);
+    ret = vla_response_header_replace_all(req, "X-Best-Header", "Sandwich");
+    TEST_ASSERT_EQUAL_INT(0, ret);
+    return VLA_HANDLE_RESPOND_TERM;
+}
+
+void test_header_replace_all_multi()
+{
+    int ret = vla_add_route(
+        ctx,
+        VLA_HTTP_GET, "/response",
+        handler_header_replace_all_multi, NULL,
+        NULL
+    );
+    TEST_ASSERT_EQUAL_INT(0, ret);
+
+    start_request();
+
+    helper_header_value_not_exist("x-test-header: ", "Cheese");
+    helper_header_value_not_exist("x-test-header: ", "Tacos");
+    helper_header_value_exists("x-test-header: ", "Chicken");
+    helper_header_value_exists("x-best-header: ", "Sandwich");
+}
+
+enum vla_handle_code handler_header_remove(
+    vla_request *req,
+    void *nul)
+{
+    size_t i = -1;
+    int ret = vla_response_header_add(req, "X-Test-Header", "Cheese", &i);
+    TEST_ASSERT_EQUAL_INT(0, ret);
+    ret = vla_response_header_remove(req, "X-Test-Header", i);
+    TEST_ASSERT_EQUAL_INT(0, ret);
+    return VLA_HANDLE_RESPOND_TERM;
+}
+
+void test_header_remove()
+{
+    int ret = vla_add_route(
+        ctx,
+        VLA_HTTP_GET, "/response",
+        handler_header_remove, NULL,
         NULL
     );
     TEST_ASSERT_EQUAL_INT(0, ret);
@@ -349,19 +571,57 @@ void test_header_delete()
     helper_header_not_exist("x-test-header: ");
 }
 
-enum vla_handle_code handler_header_delete_not_exist(vla_request *req, void *nul)
+enum vla_handle_code handler_header_remove_middle(
+    vla_request *req,
+    void *nul)
 {
-    int ret = vla_response_header_remove(req, "X-Test-Header");
-    TEST_ASSERT_EQUAL_INT(-1, ret);
+    int ret = vla_response_header_add(req, "X-Test-Header", "Cheese", NULL);
+    TEST_ASSERT_EQUAL_INT(0, ret);
+    size_t i = -1;
+    ret = vla_response_header_add(req, "X-Test-Header", "Tacos", &i);
+    TEST_ASSERT_EQUAL_INT(0, ret);
+    TEST_ASSERT_NOT_EQUAL_size_t(-1, i);
+    ret = vla_response_header_add(req, "X-Test-Header", "Chicken", NULL);
+    TEST_ASSERT_EQUAL_INT(0, ret);
+    ret = vla_response_header_remove(req, "X-Test-Header", i);
+    TEST_ASSERT_EQUAL_INT(0, ret);
+    const char *val = vla_response_header_get(req, "X-Test-Header", i);
+    TEST_ASSERT_EQUAL_STRING("Chicken", val);
     return VLA_HANDLE_RESPOND_TERM;
 }
 
-void test_header_delete_not_exist()
+void test_header_remove_middle()
 {
     int ret = vla_add_route(
         ctx,
         VLA_HTTP_GET, "/response",
-        handler_header_delete_not_exist, NULL,
+        handler_header_remove_middle, NULL,
+        NULL
+    );
+    TEST_ASSERT_EQUAL_INT(0, ret);
+
+    start_request();
+
+    helper_header_value_exists("x-test-header: ", "Cheese");
+    helper_header_value_not_exist("x-test-header: ", "Tacos");
+    helper_header_value_exists("x-test-header: ", "Chicken");
+}
+
+enum vla_handle_code handler_header_remove_doesnt_exist(
+    vla_request *req,
+    void *nul)
+{
+    int ret = vla_response_header_remove(req, "X-Test-Header", 0);
+    TEST_ASSERT_EQUAL_INT(-1, ret);
+    return VLA_HANDLE_RESPOND_TERM;
+}
+
+void test_header_remove_doesnt_exist()
+{
+    int ret = vla_add_route(
+        ctx,
+        VLA_HTTP_GET, "/response",
+        handler_header_remove_doesnt_exist, NULL,
         NULL
     );
     TEST_ASSERT_EQUAL_INT(0, ret);
@@ -371,48 +631,183 @@ void test_header_delete_not_exist()
     helper_header_not_exist("x-test-header: ");
 }
 
-enum vla_handle_code handler_header_multi(vla_request *req, void *nul)
+enum vla_handle_code handler_header_remove_wrong_index(
+    vla_request *req,
+    void *nul)
 {
-    int ret = vla_response_header_insert(req, "X-Test-Header", "Test");
+    size_t i = -1;
+    int ret = vla_response_header_add(req, "X-Test-Header", "Cheese", &i);
     TEST_ASSERT_EQUAL_INT(0, ret);
-    ret = vla_response_header_insert(req, "X-Accept-Stuff", "en_US;utf-8");
-    TEST_ASSERT_EQUAL_INT(0, ret);
-    ret = vla_response_header_append(req, "X-Accept-Stuff", "fr_FR;s-jis");
-    TEST_ASSERT_EQUAL_INT(0, ret);
-    ret = vla_response_header_append(req, "X-app", "1");
-    TEST_ASSERT_EQUAL_INT(0, ret);
-    ret = vla_response_header_append(req, "X-app", "2");
-    TEST_ASSERT_EQUAL_INT(0, ret);
-    ret = vla_response_header_remove(req, "x-app");
-    TEST_ASSERT_EQUAL_INT(0, ret);
-    ret = vla_response_header_remove(req, "x-app");
+    ret = vla_response_header_remove(req, "X-Test-Header", i + 1);
     TEST_ASSERT_EQUAL_INT(-1, ret);
     return VLA_HANDLE_RESPOND_TERM;
 }
 
-void test_header_multi()
+void test_header_remove_wrong_index()
 {
     int ret = vla_add_route(
         ctx,
         VLA_HTTP_GET, "/response",
-        handler_header_multi, NULL,
+        handler_header_remove_wrong_index, NULL,
         NULL
     );
     TEST_ASSERT_EQUAL_INT(0, ret);
 
     start_request();
 
-    helper_header_value_exists("x-test-header: ", "Test");
-    helper_header_value_exists("x-accept-stuff: ", "en_US;utf-8,fr_FR;s-jis");
-    helper_header_not_exist("x-app");
+    helper_header_value_exists("x-test-header: ", "Cheese");
+}
+
+enum vla_handle_code handler_header_remove_then_add(
+    vla_request *req,
+    void *nul)
+{
+    size_t i = -1;
+    int ret = vla_response_header_add(req, "X-Test-Header", "Cheese", &i);
+    TEST_ASSERT_EQUAL_INT(0, ret);
+    ret = vla_response_header_remove(req, "X-Test-Header", i);
+    TEST_ASSERT_EQUAL_INT(0, ret);
+    ret = vla_response_header_add(req, "X-Test-Header", "Tacos", NULL);
+    TEST_ASSERT_EQUAL_INT(0, ret);
+    return VLA_HANDLE_RESPOND_TERM;
+}
+
+void test_header_remove_then_add()
+{
+    int ret = vla_add_route(
+        ctx,
+        VLA_HTTP_GET, "/response",
+        handler_header_remove_then_add, NULL,
+        NULL
+    );
+    TEST_ASSERT_EQUAL_INT(0, ret);
+
+    start_request();
+
+    helper_header_value_not_exist("x-test-header: ", "Cheese");
+    helper_header_value_exists("x-test-header: ", "Tacos");
+}
+
+enum vla_handle_code handler_header_remove_all(
+    vla_request *req,
+    void *nul)
+{
+    int ret = vla_response_header_add(req, "X-Test-Header", "Cheese", NULL);
+    TEST_ASSERT_EQUAL_INT(0, ret);
+    ret = vla_response_header_remove_all(req, "X-Test-Header");
+    TEST_ASSERT_EQUAL_INT(0, ret);
+    return VLA_HANDLE_RESPOND_TERM;
+}
+
+void test_header_remove_all()
+{
+    int ret = vla_add_route(
+        ctx,
+        VLA_HTTP_GET, "/response",
+        handler_header_remove_all, NULL,
+        NULL
+    );
+    TEST_ASSERT_EQUAL_INT(0, ret);
+
+    start_request();
+
+    helper_header_not_exist("x-test-header: ");
+}
+
+enum vla_handle_code handler_header_remove_all_multi(
+    vla_request *req,
+    void *nul)
+{
+    int ret = vla_response_header_add(req, "X-Test-Header", "Cheese", NULL);
+    TEST_ASSERT_EQUAL_INT(0, ret);
+    ret = vla_response_header_add(req, "X-Test-Header", "Tacos", NULL);
+    TEST_ASSERT_EQUAL_INT(0, ret);
+    ret = vla_response_header_remove_all(req, "X-Test-Header");
+    TEST_ASSERT_EQUAL_INT(0, ret);
+    return VLA_HANDLE_RESPOND_TERM;
+}
+
+void test_header_remove_all_multi()
+{
+    int ret = vla_add_route(
+        ctx,
+        VLA_HTTP_GET, "/response",
+        handler_header_remove_all_multi, NULL,
+        NULL
+    );
+    TEST_ASSERT_EQUAL_INT(0, ret);
+
+    start_request();
+
+    helper_header_not_exist("x-test-header: ");
+}
+
+enum vla_handle_code handler_header_remove_all_not_exist(
+    vla_request *req,
+    void *nul)
+{
+    int ret = vla_response_header_remove_all(req, "X-Test-Header");
+    TEST_ASSERT_EQUAL_INT(-1, ret);
+    return VLA_HANDLE_RESPOND_TERM;
+}
+
+void test_header_remove_all_not_exist()
+{
+    int ret = vla_add_route(
+        ctx,
+        VLA_HTTP_GET, "/response",
+        handler_header_remove_all_not_exist, NULL,
+        NULL
+    );
+    TEST_ASSERT_EQUAL_INT(0, ret);
+
+    start_request();
+
+    helper_header_not_exist("x-test-header: ");
+}
+
+enum vla_handle_code handler_header_remove_all_then_add(
+    vla_request *req,
+    void *nul)
+{
+    int ret = vla_response_header_add(req, "X-Test-Header", "Cheese", NULL);
+    TEST_ASSERT_EQUAL_INT(0, ret);
+    ret = vla_response_header_add(req, "X-Test-Header", "Tacos", NULL);
+    TEST_ASSERT_EQUAL_INT(0, ret);
+    ret = vla_response_header_remove_all(req, "X-Test-Header");
+    TEST_ASSERT_EQUAL_INT(0, ret);
+    ret = vla_response_header_add(req, "X-Test-Header", "Beans", NULL);
+    TEST_ASSERT_EQUAL_INT(0, ret);
+    return VLA_HANDLE_RESPOND_TERM;
+}
+
+void test_header_remove_all_then_add()
+{
+    int ret = vla_add_route(
+        ctx,
+        VLA_HTTP_GET, "/response",
+        handler_header_remove_all_then_add, NULL,
+        NULL
+    );
+    TEST_ASSERT_EQUAL_INT(0, ret);
+
+    start_request();
+
+    helper_header_value_not_exist("x-test-header: ", "Cheese");
+    helper_header_value_not_exist("x-test-header: ", "Tacos");
+    helper_header_value_exists("x-test-header: ", "Beans");
 }
 
 enum vla_handle_code handler_header_get(vla_request *req, void *nul)
 {
-    int ret = vla_response_header_insert(req, "X-Test-Header", "Test");
+    size_t i = -1;
+    int ret = vla_response_header_add(req, "X-Test-Header", "Cheese", &i);
     TEST_ASSERT_EQUAL_INT(0, ret);
-    const char *val = vla_response_header_get(req, "x-test-header");
-    TEST_ASSERT_EQUAL_STRING("Test", val);
+    const char *val = vla_response_header_get(req, "x-test-header", i);
+    TEST_ASSERT_NOT_NULL(val);
+    TEST_ASSERT_EQUAL_STRING("Cheese", val);
+    ret = vla_free((char *)val);
+    TEST_ASSERT_EQUAL_INT(0, ret);
     return VLA_HANDLE_RESPOND_TERM;
 }
 
@@ -428,22 +823,61 @@ void test_header_get()
 
     start_request();
 
-    helper_header_value_exists("x-test-header: ", "Test");
+    helper_header_value_exists("x-test-header: ", "Cheese");
 }
 
-enum vla_handle_code handler_header_get_null(vla_request *req, void *nul)
+enum vla_handle_code handler_header_get_multi(vla_request *req, void *nul)
 {
-    const char *val = vla_response_header_get(req, "x-test-header");
-    TEST_ASSERT_NULL(val);
+    int ret = vla_response_header_add(req, "X-Test-Header", "Cheese", NULL);
+    TEST_ASSERT_EQUAL_INT(0, ret);
+
+    ret = vla_response_header_add(req, "X-Test-Header", "Tacos", NULL);
+    TEST_ASSERT_EQUAL_INT(0, ret);
+
+    const char *val = vla_response_header_get(req, "x-test-header", 0);
+    TEST_ASSERT_NOT_NULL(val);
+    TEST_ASSERT_EQUAL_STRING("Cheese", val);
+    ret = vla_free((char *)val);
+    TEST_ASSERT_EQUAL_INT(0, ret);
+
+    val = vla_response_header_get(req, "x-test-header", 1);
+    TEST_ASSERT_NOT_NULL(val);
+    TEST_ASSERT_EQUAL_STRING("Tacos", val);
+    ret = vla_free((char *)val);
+    TEST_ASSERT_EQUAL_INT(0, ret);
+
     return VLA_HANDLE_RESPOND_TERM;
 }
 
-void test_header_get_null()
+void test_header_get_multi()
 {
     int ret = vla_add_route(
         ctx,
         VLA_HTTP_GET, "/response",
-        handler_header_get_null, NULL,
+        handler_header_get_multi, NULL,
+        NULL
+    );
+    TEST_ASSERT_EQUAL_INT(0, ret);
+
+    start_request();
+
+    helper_header_value_exists("x-test-header: ", "Cheese");
+    helper_header_value_exists("x-test-header: ", "Tacos");
+}
+
+enum vla_handle_code handler_header_get_not_exist(vla_request *req, void *nul)
+{
+    const char *val = vla_response_header_get(req, "x-test-header", 0);
+    TEST_ASSERT_NULL(val);
+    return VLA_HANDLE_RESPOND_TERM;
+}
+
+void test_header_get_not_exist()
+{
+    int ret = vla_add_route(
+        ctx,
+        VLA_HTTP_GET, "/response",
+        handler_header_get_not_exist, NULL,
         NULL
     );
     TEST_ASSERT_EQUAL_INT(0, ret);
@@ -451,6 +885,202 @@ void test_header_get_null()
     start_request();
 
     helper_header_not_exist("x-test-header: ");
+}
+
+enum vla_handle_code handler_header_get_after_remove(
+    vla_request *req,
+    void *nul)
+{
+    size_t i = -1;
+    int ret = vla_response_header_add(req, "x-test-header", "value", &i);
+    TEST_ASSERT_EQUAL_INT(0, ret);
+    TEST_ASSERT_NOT_EQUAL_size_t(-1, i);
+
+    ret = vla_response_header_remove(req, "x-test-header", i);
+    TEST_ASSERT_EQUAL_INT(0, ret);
+
+    const char *val = vla_response_header_get(req, "x-test-header", 0);
+    TEST_ASSERT_NULL(val);
+
+    return VLA_HANDLE_RESPOND_TERM;
+}
+
+void test_header_get_after_remove()
+{
+    int ret = vla_add_route(
+        ctx,
+        VLA_HTTP_GET, "/response",
+        handler_header_get_after_remove, NULL,
+        NULL
+    );
+    TEST_ASSERT_EQUAL_INT(0, ret);
+
+    start_request();
+
+    helper_header_not_exist("x-test-header: ");
+}
+
+enum vla_handle_code handler_header_count(vla_request *req, void *nul)
+{
+    int ret = vla_response_header_add(req, "x-test-header", "value", NULL);
+    TEST_ASSERT_EQUAL_INT(0, ret);
+
+    size_t size = -1;
+    size = vla_response_header_count(req, "x-test-header");
+    TEST_ASSERT_EQUAL_size_t(1, size);
+
+    return VLA_HANDLE_RESPOND_TERM;
+}
+
+void test_header_count()
+{
+    int ret = vla_add_route(
+        ctx,
+        VLA_HTTP_GET, "/response",
+        handler_header_count, NULL,
+        NULL
+    );
+    TEST_ASSERT_EQUAL_INT(0, ret);
+
+    start_request();
+
+    helper_header_value_exists("x-test-header: ", "value");
+}
+
+enum vla_handle_code handler_header_count_multi(vla_request *req, void *nul)
+{
+    int ret = vla_response_header_add(req, "x-test-header", "Cheese", NULL);
+    TEST_ASSERT_EQUAL_INT(0, ret);
+    ret = vla_response_header_add(req, "x-test-header", "Tacos", NULL);
+    TEST_ASSERT_EQUAL_INT(0, ret);
+    ret = vla_response_header_add(req, "x-test-header", "Chicken", NULL);
+    TEST_ASSERT_EQUAL_INT(0, ret);
+
+    size_t size = -1;
+    size = vla_response_header_count(req, "x-test-header");
+    TEST_ASSERT_EQUAL_size_t(3, size);
+
+    return VLA_HANDLE_RESPOND_TERM;
+}
+
+void test_header_count_multi()
+{
+    int ret = vla_add_route(
+        ctx,
+        VLA_HTTP_GET, "/response",
+        handler_header_count_multi, NULL,
+        NULL
+    );
+    TEST_ASSERT_EQUAL_INT(0, ret);
+
+    start_request();
+
+    helper_header_value_exists("x-test-header: ", "Cheese");
+    helper_header_value_exists("x-test-header: ", "Tacos");
+    helper_header_value_exists("x-test-header: ", "Chicken");
+}
+
+enum vla_handle_code handler_header_count_not_exist(vla_request *req, void *nul)
+{
+    size_t size = -1;
+    size = vla_response_header_count(req, "x-test-header");
+    TEST_ASSERT_EQUAL_size_t(0, size);
+    return VLA_HANDLE_RESPOND_TERM;
+}
+
+void test_header_count_not_exist()
+{
+    int ret = vla_add_route(
+        ctx,
+        VLA_HTTP_GET, "/response",
+        handler_header_count_not_exist, NULL,
+        NULL
+    );
+    TEST_ASSERT_EQUAL_INT(0, ret);
+
+    start_request();
+
+    helper_header_not_exist("x-test-header: ");
+}
+
+enum vla_handle_code handler_header_count_after_remove(
+    vla_request *req,
+    void *nul)
+{
+    int ret = vla_response_header_add(req, "x-test-header", "Cheese", NULL);
+    TEST_ASSERT_EQUAL_INT(0, ret);
+    ret = vla_response_header_add(req, "x-test-header", "Tacos", NULL);
+    TEST_ASSERT_EQUAL_INT(0, ret);
+    ret = vla_response_header_add(req, "x-test-header", "Chicken", NULL);
+    TEST_ASSERT_EQUAL_INT(0, ret);
+
+    size_t size = -1;
+    size = vla_response_header_count(req, "x-test-header");
+    TEST_ASSERT_EQUAL_size_t(3, size);
+
+    ret = vla_response_header_remove(req, "x-test-header", 1);
+    TEST_ASSERT_EQUAL_INT(0, ret);
+
+    size = -1;
+    size = vla_response_header_count(req, "x-test-header");
+    TEST_ASSERT_EQUAL_size_t(2, size);
+
+    return VLA_HANDLE_RESPOND_TERM;
+}
+
+void test_header_count_after_remove()
+{
+    int ret = vla_add_route(
+        ctx,
+        VLA_HTTP_GET, "/response",
+        handler_header_count_after_remove, NULL,
+        NULL
+    );
+    TEST_ASSERT_EQUAL_INT(0, ret);
+
+    start_request();
+
+    helper_header_value_exists("x-test-header: ", "Cheese");
+    helper_header_value_not_exist("x-test-header: ", "Tacos");
+    helper_header_value_exists("x-test-header: ", "Chicken");
+}
+
+enum vla_handle_code handler_header_count_after_remove_all(
+    vla_request *req,
+    void *nul)
+{
+    int ret = vla_response_header_add(req, "x-test-header", "Cheese", NULL);
+    TEST_ASSERT_EQUAL_INT(0, ret);
+    ret = vla_response_header_add(req, "x-test-header", "Tacos", NULL);
+    TEST_ASSERT_EQUAL_INT(0, ret);
+    ret = vla_response_header_add(req, "x-test-header", "Chicken", NULL);
+    TEST_ASSERT_EQUAL_INT(0, ret);
+
+    ret = vla_response_header_remove_all(req, "x-test-header");
+    TEST_ASSERT_EQUAL_INT(0, ret);
+
+    size_t size = -1;
+    size = vla_response_header_count(req, "x-test-header");
+    TEST_ASSERT_EQUAL_size_t(0, size);
+
+    return VLA_HANDLE_RESPOND_TERM;
+}
+
+void test_header_count_after_remove_all()
+{
+    int ret = vla_add_route(
+        ctx,
+        VLA_HTTP_GET, "/response",
+        handler_header_count_after_remove_all, NULL,
+        NULL
+    );
+    TEST_ASSERT_EQUAL_INT(0, ret);
+
+    start_request();
+
+    helper_header_value_not_exist("x-test-header: ", "Cheese");
+    helper_header_value_not_exist("x-test-header: ", "Tacos");
+    helper_header_value_not_exist("x-test-header: ", "Chicken");
 }
 
 enum vla_handle_code handler_status(vla_request *req, void *nul)
@@ -613,6 +1243,210 @@ void test_get_content_type_null()
     helper_header_not_exist("Content-Type: ");
 }
 
+enum vla_handle_code handler_set_cookie(vla_request *req, void *nul)
+{
+    vla_cookie_t cookie;
+    vla_init_cookie(&cookie);
+    cookie.name = "TestCookie";
+    cookie.value = "Value";
+    int ret = vla_response_set_cookie(req, &cookie);
+    TEST_ASSERT_EQUAL_INT(0, ret);
+    return VLA_HANDLE_RESPOND_TERM;
+}
+
+void test_set_cookie()
+{
+    int ret = vla_add_route(
+        ctx,
+        VLA_HTTP_GET, "/response",
+        handler_set_cookie, NULL,
+        NULL
+    );
+    TEST_ASSERT_EQUAL_INT(0, ret);
+
+    start_request();
+
+    struct curl_slist *cookies = NULL;
+    curl_easy_getinfo(c, CURLINFO_COOKIELIST, &cookies);
+
+    TEST_ASSERT_NOT_NULL_MESSAGE(cookies, "Cookie list is NULL");
+    TEST_ASSERT_NOT_NULL_MESSAGE(cookies->data, "Cookie data is NULL");
+
+    netscape_cookie_t cookie;
+    helper_convert_cookie(cookies->data, &cookie);
+    TEST_ASSERT_EQUAL_STRING("localhost", cookie.route);
+    TEST_ASSERT_EQUAL_INT(0, cookie.include_subdomains);
+    TEST_ASSERT_EQUAL_STRING("/", cookie.path);
+    TEST_ASSERT_EQUAL_INT(0, cookie.secure);
+    TEST_ASSERT_EQUAL(0, cookie.expiry);
+    TEST_ASSERT_EQUAL_STRING("TestCookie", cookie.name);
+    TEST_ASSERT_EQUAL_STRING("Value", cookie.value);
+
+    TEST_ASSERT_NULL_MESSAGE(cookies->next, "Cookie next is not NULL");
+
+    curl_slist_free_all(cookies);
+}
+
+enum vla_handle_code handler_set_cookie_params(vla_request *req, void *nul)
+{
+    vla_cookie_t cookie;
+    vla_init_cookie(&cookie);
+    cookie.name = "TestCookie";
+    cookie.value = "Value";
+    cookie.path = "/response";
+    cookie.expires = 0x7FFFFFFF;
+    cookie.httponly = 1;
+    int ret = vla_response_set_cookie(req, &cookie);
+    TEST_ASSERT_EQUAL_INT(0, ret);
+    return VLA_HANDLE_RESPOND_TERM;
+}
+
+void test_set_cookie_params()
+{
+    int ret = vla_add_route(
+        ctx,
+        VLA_HTTP_GET, "/response",
+        handler_set_cookie_params, NULL,
+        NULL
+    );
+    TEST_ASSERT_EQUAL_INT(0, ret);
+
+    start_request();
+
+    struct curl_slist *cookies = NULL;
+    curl_easy_getinfo(c, CURLINFO_COOKIELIST, &cookies);
+
+    TEST_ASSERT_NOT_NULL_MESSAGE(cookies, "Cookie list is NULL");
+    TEST_ASSERT_NOT_NULL_MESSAGE(cookies->data, "Cookie data is NULL");
+
+    netscape_cookie_t cookie;
+    helper_convert_cookie(cookies->data, &cookie);
+    TEST_ASSERT_EQUAL_STRING("#HttpOnly_localhost", cookie.route);
+    TEST_ASSERT_EQUAL_INT(0, cookie.include_subdomains);
+    TEST_ASSERT_EQUAL_STRING("/response", cookie.path);
+    TEST_ASSERT_EQUAL_INT(0, cookie.secure);
+    TEST_ASSERT_EQUAL(0x7FFFFFFF, cookie.expiry);
+    TEST_ASSERT_EQUAL_STRING("TestCookie", cookie.name);
+    TEST_ASSERT_EQUAL_STRING("Value", cookie.value);
+
+    TEST_ASSERT_NULL_MESSAGE(cookies->next, "Cookie next is not NULL");
+
+    curl_slist_free_all(cookies);
+}
+
+enum vla_handle_code handler_set_cookie_params2(vla_request *req, void *nul)
+{
+    vla_cookie_t cookie;
+    vla_init_cookie(&cookie);
+    cookie.name = "TestCookie";
+    cookie.value = "Value";
+    cookie.path = "/";
+    cookie.httponly = 0;
+    cookie.domain = "localhost";
+    int ret = vla_response_set_cookie(req, &cookie);
+    TEST_ASSERT_EQUAL_INT(0, ret);
+    return VLA_HANDLE_RESPOND_TERM;
+}
+
+void test_set_cookie_params2()
+{
+    int ret = vla_add_route(
+        ctx,
+        VLA_HTTP_GET, "/response",
+        handler_set_cookie_params2, NULL,
+        NULL
+    );
+    TEST_ASSERT_EQUAL_INT(0, ret);
+
+    start_request();
+
+    struct curl_slist *cookies = NULL;
+    curl_easy_getinfo(c, CURLINFO_COOKIELIST, &cookies);
+
+    TEST_ASSERT_NOT_NULL_MESSAGE(cookies, "Cookie list is NULL");
+    TEST_ASSERT_NOT_NULL_MESSAGE(cookies->data, "Cookie data is NULL");
+
+    netscape_cookie_t cookie;
+    helper_convert_cookie(cookies->data, &cookie);
+    TEST_ASSERT_EQUAL_STRING(".localhost", cookie.route);
+    TEST_ASSERT_EQUAL_INT(1, cookie.include_subdomains);
+    TEST_ASSERT_EQUAL_STRING("/", cookie.path);
+    TEST_ASSERT_EQUAL_INT(0, cookie.secure);
+    TEST_ASSERT_EQUAL(0, cookie.expiry);
+    TEST_ASSERT_EQUAL_STRING("TestCookie", cookie.name);
+    TEST_ASSERT_EQUAL_STRING("Value", cookie.value);
+
+    TEST_ASSERT_NULL_MESSAGE(cookies->next, "Cookie next is not NULL");
+
+    curl_slist_free_all(cookies);
+}
+
+enum vla_handle_code handler_set_cookie_multi(vla_request *req, void *nul)
+{
+    vla_cookie_t cookie;
+    vla_init_cookie(&cookie);
+    cookie.name = "Cookie1";
+    cookie.value = "Value1";
+    cookie.path = "/";
+    cookie.domain = "localhost";
+    int ret = vla_response_set_cookie(req, &cookie);
+    TEST_ASSERT_EQUAL_INT(0, ret);
+
+    vla_init_cookie(&cookie);
+    cookie.name = "Cookie2";
+    cookie.value = "Value2";
+    cookie.path = "/request";
+    cookie.httponly = 1;
+    cookie.expires = 0x5FFFFFFF;
+    ret = vla_response_set_cookie(req, &cookie);
+    TEST_ASSERT_EQUAL_INT(0, ret);
+
+    return VLA_HANDLE_RESPOND_TERM;
+}
+
+void test_set_cookie_multi()
+{
+    int ret = vla_add_route(
+        ctx,
+        VLA_HTTP_GET, "/response",
+        handler_set_cookie_multi, NULL,
+        NULL
+    );
+    TEST_ASSERT_EQUAL_INT(0, ret);
+
+    start_request();
+
+    struct curl_slist *cookies = NULL;
+    curl_easy_getinfo(c, CURLINFO_COOKIELIST, &cookies);
+
+    TEST_ASSERT_NOT_NULL_MESSAGE(cookies, "Cookie list is NULL");
+    TEST_ASSERT_NOT_NULL_MESSAGE(cookies->data, "Cookie data is NULL");
+    TEST_ASSERT_NOT_NULL_MESSAGE(cookies->next, "Next cookie doesn't exist");
+    TEST_ASSERT_NOT_NULL_MESSAGE(cookies->next->data, "Next cookie data is NULL");
+    TEST_ASSERT_NULL_MESSAGE(cookies->next->next, "Cookie next next is not NULL");
+
+    netscape_cookie_t cookie;
+    helper_convert_cookie(cookies->data, &cookie);
+    TEST_ASSERT_EQUAL_STRING(".localhost", cookie.route);
+    TEST_ASSERT_EQUAL_INT(1, cookie.include_subdomains);
+    TEST_ASSERT_EQUAL_STRING("/", cookie.path);
+    TEST_ASSERT_EQUAL_INT(0, cookie.secure);
+    TEST_ASSERT_EQUAL(0, cookie.expiry);
+    TEST_ASSERT_EQUAL_STRING("Cookie1", cookie.name);
+    TEST_ASSERT_EQUAL_STRING("Value1", cookie.value);
+
+    helper_convert_cookie(cookies->next->data, &cookie);
+    TEST_ASSERT_EQUAL_STRING("#HttpOnly_localhost", cookie.route);
+    TEST_ASSERT_EQUAL_INT(0, cookie.include_subdomains);
+    TEST_ASSERT_EQUAL_STRING("/request", cookie.path);
+    TEST_ASSERT_EQUAL_INT(0, cookie.secure);
+    TEST_ASSERT_EQUAL(0x5FFFFFFF, cookie.expiry);
+    TEST_ASSERT_EQUAL_STRING("Cookie2", cookie.name);
+    TEST_ASSERT_EQUAL_STRING("Value2", cookie.value);
+
+    curl_slist_free_all(cookies);
+}
+
 enum vla_handle_code handler_printf(vla_request *req, void *nul)
 {
     vla_printf(req, "%s\n%d", "Test", -3);
@@ -729,7 +1563,7 @@ void test_multi_print()
 enum vla_handle_code handler_header_and_print(vla_request *req, void *nul)
 {
     vla_response_set_status_code(req, 301);
-    vla_response_header_insert(req, "x-test-header", "test");
+    vla_response_header_add(req, "x-test-header", "test", NULL);
     vla_puts(req, "Bacon ");
     vla_puts(req, "Lettuce ");
     vla_puts(req, "Tomato");
@@ -757,7 +1591,7 @@ enum vla_handle_code handler_header_and_print_order(vla_request *req, void *nul)
 {
     vla_puts(req, "Rock ");
     vla_response_set_status_code(req, 504);
-    vla_response_header_insert(req, "x-best-hdr", "best");
+    vla_response_header_add(req, "x-best-hdr", "best", NULL);
     vla_puts(req, "Paper ");
     vla_puts(req, "Scizzors");
     return VLA_HANDLE_RESPOND_TERM;
@@ -784,16 +1618,40 @@ void main()
 {
     UNITY_BEGIN();
 
-    RUN_TEST(test_header_insert);
+    RUN_TEST(test_header_add);
+    RUN_TEST(test_header_add_duplicate);
+    RUN_TEST(test_header_add_index);
+    RUN_TEST(test_header_add_multi);
+
     RUN_TEST(test_header_replace);
-    RUN_TEST(test_header_append);
-    RUN_TEST(test_header_append_multi);
-    RUN_TEST(test_header_append_single);
-    RUN_TEST(test_header_delete);
-    RUN_TEST(test_header_delete_not_exist);
-    RUN_TEST(test_header_multi);
+    RUN_TEST(test_header_replace_not_exist);
+    RUN_TEST(test_header_replace_wrong_index);
+
+    RUN_TEST(test_header_replace_all);
+    RUN_TEST(test_header_replace_all_none);
+    RUN_TEST(test_header_replace_all_multi);
+
+    RUN_TEST(test_header_remove);
+    RUN_TEST(test_header_remove_middle);
+    RUN_TEST(test_header_remove_doesnt_exist);
+    RUN_TEST(test_header_remove_wrong_index);
+    RUN_TEST(test_header_remove_then_add);
+
+    RUN_TEST(test_header_remove_all);
+    RUN_TEST(test_header_remove_all_multi);
+    RUN_TEST(test_header_remove_all_not_exist);
+    RUN_TEST(test_header_remove_all_then_add);
+
     RUN_TEST(test_header_get);
-    RUN_TEST(test_header_get_null);
+    RUN_TEST(test_header_get_multi);
+    RUN_TEST(test_header_get_not_exist);
+    RUN_TEST(test_header_get_after_remove);
+
+    RUN_TEST(test_header_count);
+    RUN_TEST(test_header_count_multi);
+    RUN_TEST(test_header_count_not_exist);
+    RUN_TEST(test_header_count_after_remove);
+    RUN_TEST(test_header_count_after_remove_all);
 
     RUN_TEST(test_status);
     RUN_TEST(test_set_status);
@@ -803,6 +1661,11 @@ void main()
     RUN_TEST(test_set_content_type);
     RUN_TEST(test_get_content_type);
     RUN_TEST(test_get_content_type_null);
+
+    RUN_TEST(test_set_cookie);
+    RUN_TEST(test_set_cookie_params);
+    RUN_TEST(test_set_cookie_params2);
+    RUN_TEST(test_set_cookie_multi);
 
     RUN_TEST(test_printf);
     RUN_TEST(test_puts);
