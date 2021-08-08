@@ -116,7 +116,7 @@ typedef struct vla_request_private
     //////////////
 
     /* The handlers for the current request. */
-    route_info_t *info;
+    const route_info_t *info;
 
     /* The current array index into the middleware array. */
     size_t mw_i;

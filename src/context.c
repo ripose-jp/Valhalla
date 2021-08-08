@@ -117,12 +117,12 @@ void vla_set_not_found_handler(
     va_end(ap);
 }
 
-route_info_t *context_get_route(
+const route_info_t *context_get_route(
     vla_context *ctx,
     const char *uri,
     enum vla_http_method method)
 {
-    route_info_t *route = route_get(ctx->route_tree_root, uri, method);
+    const route_info_t *route = route_get(ctx->route_tree_root, uri, method);
     return route ? route : ctx->unknown_info;
 }
 

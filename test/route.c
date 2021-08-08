@@ -152,14 +152,14 @@ void test_route_exact()
     );
     TEST_ASSERT_EQUAL_INT(0, ret);
 
-    route_info_t *info_get = route_get(root, "/test", VLA_HTTP_GET);
+    const route_info_t *info_get = route_get(root, "/test", VLA_HTTP_GET);
     TEST_ASSERT_NOT_NULL(info_get);
     TEST_ASSERT_EQUAL_PTR(hdlr, info_get->hdlr);
     TEST_ASSERT_EQUAL_PTR(hdlr_arg, info_get->hdlr_arg);
     TEST_ASSERT_NULL(info_get->mw[0]);
     TEST_ASSERT_NULL(info_get->mw_args[0]);
 
-    route_info_t *info_post = route_get(root, "/test", VLA_HTTP_POST);
+    const route_info_t *info_post = route_get(root, "/test", VLA_HTTP_POST);
     TEST_ASSERT_NOT_NULL(info_post);
     TEST_ASSERT_EQUAL_PTR(hdlr, info_post->hdlr);
     TEST_ASSERT_EQUAL_PTR(hdlr_arg, info_post->hdlr_arg);
@@ -188,7 +188,7 @@ void test_route_exact_wrong_method()
     );
     TEST_ASSERT_EQUAL_INT(0, ret);
 
-    route_info_t *info = route_get(root, "/test", VLA_HTTP_PATCH);
+    const route_info_t *info = route_get(root, "/test", VLA_HTTP_PATCH);
     TEST_ASSERT_NULL(info);
 
     talloc_free(root);
@@ -211,7 +211,7 @@ void test_route_capture()
     );
     TEST_ASSERT_EQUAL_INT(0, ret);
 
-    route_info_t *info = route_get(root, "/test/1", VLA_HTTP_GET);
+    const route_info_t *info = route_get(root, "/test/1", VLA_HTTP_GET);
     TEST_ASSERT_NOT_NULL(info);
     TEST_ASSERT_EQUAL_PTR(hdlr, info->hdlr);
     TEST_ASSERT_EQUAL_PTR(hdlr_arg, info->hdlr_arg);
@@ -238,7 +238,7 @@ void test_route_capture_empty()
     );
     TEST_ASSERT_EQUAL_INT(0, ret);
 
-    route_info_t *info = route_get(root, "/test/", VLA_HTTP_GET);
+    const route_info_t *info = route_get(root, "/test/", VLA_HTTP_GET);
     TEST_ASSERT_NOT_NULL(info);
     TEST_ASSERT_EQUAL_PTR(hdlr, info->hdlr);
     TEST_ASSERT_EQUAL_PTR(hdlr_arg, info->hdlr_arg);
@@ -265,7 +265,7 @@ void test_route_capture_middle()
     );
     TEST_ASSERT_EQUAL_INT(0, ret);
 
-    route_info_t *info = route_get(root, "/test/1/book", VLA_HTTP_GET);
+    const route_info_t *info = route_get(root, "/test/1/book", VLA_HTTP_GET);
     TEST_ASSERT_NOT_NULL(info);
     TEST_ASSERT_EQUAL_PTR(hdlr, info->hdlr);
     TEST_ASSERT_EQUAL_PTR(hdlr_arg, info->hdlr_arg);
@@ -293,7 +293,7 @@ void test_route_capture_wrong()
     TEST_ASSERT_EQUAL_INT(0, ret);
 
     /* Wrong Method */
-    route_info_t *info = route_get(root, "/test/1", VLA_HTTP_HEAD);
+    const route_info_t *info = route_get(root, "/test/1", VLA_HTTP_HEAD);
     TEST_ASSERT_NULL(info);
 
     /* Wrong URI */
@@ -325,7 +325,7 @@ void test_route_capture_middle_wrong()
     TEST_ASSERT_EQUAL_INT(0, ret);
 
     /* Wrong Method */
-    route_info_t *info = route_get(root, "/test/2/book", VLA_HTTP_OPTIONS);
+    const route_info_t *info = route_get(root, "/test/2/book", VLA_HTTP_OPTIONS);
     TEST_ASSERT_NULL(info);
 
     /* Wrong URI */
@@ -366,7 +366,7 @@ void test_route_match_all()
     };
     for (const char **str = routes; *str; ++str)
     {
-        route_info_t *info = route_get(root, *str, VLA_HTTP_GET);
+        const route_info_t *info = route_get(root, *str, VLA_HTTP_GET);
         TEST_ASSERT_NOT_NULL(info);
         TEST_ASSERT_EQUAL_PTR(hdlr, info->hdlr);
         TEST_ASSERT_EQUAL_PTR(hdlr_arg, info->hdlr_arg);
@@ -404,7 +404,7 @@ void test_route_match_wrong()
     };
     for (const char **str = routes; *str; ++str)
     {
-        route_info_t *info = route_get(root, *str, VLA_HTTP_OPTIONS);
+        const route_info_t *info = route_get(root, *str, VLA_HTTP_OPTIONS);
         TEST_ASSERT_NULL(info);
     }
 
@@ -484,10 +484,10 @@ void test_same_route_different_method()
     );
     TEST_ASSERT_EQUAL_INT(0, ret);
 
-    route_info_t *i_get = route_get(root, "/", VLA_HTTP_GET);
+    const route_info_t *i_get = route_get(root, "/", VLA_HTTP_GET);
     TEST_ASSERT_NOT_NULL(i_get);
 
-    route_info_t *p_get = route_get(root, "/", VLA_HTTP_POST);
+    const route_info_t *p_get = route_get(root, "/", VLA_HTTP_POST);
     TEST_ASSERT_NOT_NULL(p_get);
 
     TEST_ASSERT_NOT_EQUAL(i_get, p_get);
@@ -569,7 +569,7 @@ void test_route_capture_and_match()
     };
     for (const char **str = routes; *str; ++str)
     {
-        route_info_t *info = route_get(root, *str, VLA_HTTP_POST);
+        const route_info_t *info = route_get(root, *str, VLA_HTTP_POST);
         TEST_ASSERT_NOT_NULL(info);
         TEST_ASSERT_EQUAL_PTR(hdlr, info->hdlr);
         TEST_ASSERT_EQUAL_PTR(hdlr_arg, info->hdlr_arg);
@@ -610,7 +610,7 @@ void test_route_any_method()
     };
     for (size_t i = 0; i < 9; ++i)
     {
-        route_info_t *info = route_get(root, "/", methods[i]);
+        const route_info_t *info = route_get(root, "/", methods[i]);
         TEST_ASSERT_NOT_NULL(info);
         TEST_ASSERT_EQUAL_PTR(hdlr, info->hdlr);
         TEST_ASSERT_EQUAL_PTR(hdlr_arg, info->hdlr_arg);

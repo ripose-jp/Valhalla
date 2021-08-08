@@ -117,14 +117,16 @@ void test_add_new_method_route()
 
 void test_get_route()
 {
-    route_info_t *info = context_get_route(ctx, "/books/4", VLA_HTTP_GET);
+    const route_info_t *info = context_get_route(ctx, "/books/4", VLA_HTTP_GET);
     TEST_ASSERT_NOT_NULL(info);
     TEST_ASSERT_EQUAL_PTR((vla_handler_func)2, info->hdlr);
 }
 
 void test_get_missing_route()
 {
-    route_info_t *info = context_get_route(ctx, "/movies/2", VLA_HTTP_GET);
+    const route_info_t *info = context_get_route(
+        ctx, "/movies/2", VLA_HTTP_GET
+    );
     TEST_ASSERT_NULL(info);
 }
 
@@ -136,7 +138,9 @@ void test_unknown_route()
         (vla_middleware_func)-3, (void *)-4,
         NULL
     );
-    route_info_t *info = context_get_route(ctx, "/movies/2", VLA_HTTP_GET);
+    const route_info_t *info = context_get_route(
+        ctx, "/movies/2", VLA_HTTP_GET
+    );
     TEST_ASSERT_NOT_NULL(info);
     TEST_ASSERT_EQUAL_PTR((vla_handler_func)-1, info->hdlr);
     TEST_ASSERT_EQUAL_PTR((void *)-2, info->hdlr_arg);

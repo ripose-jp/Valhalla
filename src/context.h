@@ -44,7 +44,7 @@
  * @return The route_info_t corresponding to the route. NULL if it doesn't
  *         exist.
  */
-route_info_t *context_get_route(
+const route_info_t *context_get_route(
     vla_context *ctx,
     const char *uri,
     enum vla_http_method method);

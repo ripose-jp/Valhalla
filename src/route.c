@@ -356,7 +356,7 @@ int route_add(
     return 0;
 }
 
-route_info_t *route_get(
+const route_info_t *route_get(
     route_node_t *root,
     const char *route,
     enum vla_http_method method)

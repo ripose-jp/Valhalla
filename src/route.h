@@ -125,7 +125,7 @@ int route_add(
  * @return The route_info_t of the route and method if it exists, NULL
  *         otherwise.
  */
-route_info_t *route_get(
+const route_info_t *route_get(
     route_node_t *root,
     const char *route,
     enum vla_http_method method);
