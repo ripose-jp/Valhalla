@@ -1091,3 +1091,16 @@ void vla_write(vla_request *req, const char *data, size_t len)
 {
     req->priv->res_body = sdscatlen(req->priv->res_body, data, len);
 }
+
+void vla_eprintf(vla_request *req, const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    FCGX_VFPrintF(req->priv->f_req->err, fmt, ap);
+    va_end(ap);
+}
+
+void vla_eputs(vla_request *req, const char *s)
+{
+    FCGX_PutS(s, req->priv->f_req->err);
+}

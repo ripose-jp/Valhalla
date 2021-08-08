@@ -763,4 +763,24 @@ void vla_puts(vla_request *req, const char *s);
  */
 void vla_write(vla_request *req, const char *data, size_t len);
 
+/**
+ * Sends data directly to the webserver over stderr. Unlike vla_printf, data is
+ * not buffered and is sent immediately.
+ *
+ * @param req The request containing the stderr stream.
+ *
+ * @param fmt The format string of the data to print.
+ */
+void vla_eprintf(vla_request *req, const char *fmt, ...);
+
+/**
+ * Sends data directly to the webserver over stderr. Unlike vla_puts, data is
+ * not buffered and is sent immediately.
+ *
+ * @param req The request containing the stderr stream.
+ *
+ * @param s The string of data to print.
+ */
+void vla_eputs(vla_request *req, const char *s);
+
 #endif // __VALHALLA_H__
