@@ -157,7 +157,7 @@ int resp_header_handler(const char *hdr, const char *val, void *ptr)
  *
  * @return 0 if the response was successfully sent, -1 otherwise.
  */
-static int send_response(FCGX_Request *f_req, vla_request *req)
+static int send_response(FCGX_Request *f_req, const vla_request *req)
 {
     if (response_header_iterate(req, resp_header_handler, f_req))
     {
@@ -187,7 +187,7 @@ void vla_accept(vla_context *ctx)
 
     while (FCGX_Accept_r(&f_req) == 0)
     {
-        vla_request *req = request_new(ctx, &f_req);
+        const vla_request *req = request_new(ctx, &f_req);
         enum vla_handle_code code = vla_request_next_func(req);
 
         if (code & VLA_RESPOND_FLAG)
@@ -195,7 +195,7 @@ void vla_accept(vla_context *ctx)
             send_response(&f_req, req);
         }
 
-        talloc_free(req);
+        talloc_free((vla_request *)req);
         FCGX_Finish_r(&f_req);
 
         if (!(code & VLA_ACCEPT_FLAG))

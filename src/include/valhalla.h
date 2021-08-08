@@ -49,12 +49,12 @@ typedef struct vla_request vla_request;
 /*
  * Function pointer type for handler functions.
  */
-typedef enum vla_handle_code (*vla_handler_func)(vla_request *, void *);
+typedef enum vla_handle_code (*vla_handler_func)(const vla_request *, void *);
 
 /*
  * Function pointer type for middleware functions.
  */
-typedef enum vla_handle_code (*vla_middleware_func)(vla_request *, void *);
+typedef enum vla_handle_code (*vla_middleware_func)(const vla_request *, void *);
 
 /*
  * HTTP methods request methods.
@@ -392,7 +392,7 @@ void vla_accept(vla_context *ctx);
  * @return The value of the key. NULL if the key doesn't exist of the query
  *         string was malformed.
  */
-const char *vla_request_query_get(vla_request *req, const char *key);
+const char *vla_request_query_get(const vla_request *req, const char *key);
 
 /**
  * Iterates the query string values. Ordering is random.
@@ -408,7 +408,7 @@ const char *vla_request_query_get(vla_request *req, const char *key);
  * @return 0 if every value was iterated over, 1 otherwise.
  */
 int vla_request_query_iterate(
-    vla_request *req,
+    const vla_request *req,
     int (*callback)(const char *, const char *, void *),
     void *arg);
 
@@ -421,7 +421,7 @@ int vla_request_query_iterate(
  *
  * @return The header if it exists, NULL otherwise. Belongs to the vla_request.
  */
-const char *vla_request_header_get(vla_request *req, const char *header);
+const char *vla_request_header_get(const vla_request *req, const char *header);
 
 /**
  * Iterates over request headers.
@@ -437,7 +437,7 @@ const char *vla_request_header_get(vla_request *req, const char *header);
  * @return 0 if every value was iterated over, 1 otherwise.
  */
 int vla_request_header_iterate(
-    vla_request *req,
+    const vla_request *req,
     int (*callback)(const char *, const char *, void *),
     void *arg);
 
@@ -451,7 +451,7 @@ int vla_request_header_iterate(
  * @return The value of the cookie if it exists, NULL otherwise. Belongs to the
  *         request. Will be freed upon the completion of the request.
  */
-const char *vla_request_cookie_get(vla_request *req, const char *name);
+const char *vla_request_cookie_get(const vla_request *req, const char *name);
 
 /**
  * Iterates over sent cookies.
@@ -467,7 +467,7 @@ const char *vla_request_cookie_get(vla_request *req, const char *name);
  * @return 0 if every value was iterated over, 1 otherwise.
  */
 int vla_request_cookie_iterate(
-    vla_request *req,
+    const vla_request *req,
     int (*callback)(const char *, const char *, void *),
     void *arg);
 
@@ -492,7 +492,7 @@ int vla_request_cookie_iterate(
  * @return The body of the request up to size. The body is always nul terminated
  *         regardless of the "Content-Type" header. Belongs to the vla_request.
  */
-const char *vla_request_body_get(vla_request *req, size_t size);
+const char *vla_request_body_get(const vla_request *req, size_t size);
 
 /**
  * Gets the size of the request body from vla_request_body_get.
@@ -502,7 +502,7 @@ const char *vla_request_body_get(vla_request *req, size_t size);
  * @return The size of the request body, 0 if it hasn't been read yet or if it
  *         doesn't have a body.
  */
-size_t vla_request_body_get_length(vla_request *req);
+size_t vla_request_body_get_length(const vla_request *req);
 
 /**
  * Reads the request body in chunks into a buffer. Output is not nul terminated.
@@ -518,7 +518,7 @@ size_t vla_request_body_get_length(vla_request *req);
  *
  * @return The number of bytes written to the buffer.
  */
-size_t vla_request_body_chunk(vla_request *req, void *buffer, size_t cap);
+size_t vla_request_body_chunk(const vla_request *req, void *buffer, size_t cap);
 
 /**
  * Gets the environment variable for this request. Runs in O(n) time.
@@ -530,7 +530,7 @@ size_t vla_request_body_chunk(vla_request *req, void *buffer, size_t cap);
  * @return The value of the environment variable. NULL if it doesn't exist.
  *         Belongs to vla_request. Belongs to the vla_request.
  */
-const char *vla_request_getenv(vla_request *req, const char *var);
+const char *vla_request_getenv(const vla_request *req, const char *var);
 
 /**
  * Iterates over environment variables.
@@ -546,7 +546,7 @@ const char *vla_request_getenv(vla_request *req, const char *var);
  * @return 0 if every value was iterated over, 1 otherwise.
  */
 int vla_request_env_iterate(
-    vla_request *req,
+    const vla_request *req,
     int (*callback)(const char *, const char *, void *),
     void *arg);
 
@@ -558,7 +558,7 @@ int vla_request_env_iterate(
  *
  * @return A vla_response_code.
  */
-enum vla_handle_code vla_request_next_func(vla_request *req);
+enum vla_handle_code vla_request_next_func(const vla_request *req);
 
 /*
  *==============================================================================
@@ -581,7 +581,7 @@ enum vla_handle_code vla_request_next_func(vla_request *req);
  * @return 0 on success, -1 on failure.
  */
 int vla_response_header_add(
-    vla_request *req,
+    const vla_request *req,
     const char *header,
     const char *value,
     size_t *ind);
@@ -600,7 +600,7 @@ int vla_response_header_add(
  * @return 0 success, -1 if the header doesn't exist.
  */
 int vla_response_header_replace(
-    vla_request *req,
+    const vla_request *req,
     const char *header,
     const char *value,
     size_t i);
@@ -618,7 +618,7 @@ int vla_response_header_replace(
  * @return 0 on success, -1 on error.
  */
 int vla_response_header_replace_all(
-    vla_request *req,
+    const vla_request *req,
     const char *header,
     const char *value);
 
@@ -635,7 +635,10 @@ int vla_response_header_replace_all(
  *
  * @return 0 if the header was successfully removed, -1 if it didn't exist.
  */
-int vla_response_header_remove(vla_request *req, const char *header, size_t i);
+int vla_response_header_remove(
+    const vla_request *req,
+    const char *header,
+    size_t i);
 
 /**
  * Removes all of the specified headers.
@@ -646,7 +649,7 @@ int vla_response_header_remove(vla_request *req, const char *header, size_t i);
  *
  * @return 0 if the header was successfully removed, -1 if it didn't exist.
  */
-int vla_response_header_remove_all(vla_request *req, const char *header);
+int vla_response_header_remove_all(const vla_request *req, const char *header);
 
 /**
  * Gets the value of a response header.
@@ -662,7 +665,7 @@ int vla_response_header_remove_all(vla_request *req, const char *header);
  *         upon the completion of the request.
  */
 const char *vla_response_header_get(
-    vla_request *req,
+    const vla_request *req,
     const char *header,
     size_t i);
 
@@ -675,7 +678,7 @@ const char *vla_response_header_get(
  *
  * @return The number of values associated with that header.
  */
-size_t vla_response_header_count(vla_request *req, const char *header);
+size_t vla_response_header_count(const vla_request *req, const char *header);
 
 /**
  * Sets the status code for this response.
@@ -688,7 +691,7 @@ size_t vla_response_header_count(vla_request *req, const char *header);
  *
  * @return 0 if the status code was succesfully set, nonzero on error.
  */
-int vla_response_set_status_code(vla_request *req, unsigned int code);
+int vla_response_set_status_code(const vla_request *req, unsigned int code);
 
 /**
  * Gets the currently set status code for the response.
@@ -697,7 +700,7 @@ int vla_response_set_status_code(vla_request *req, unsigned int code);
  *
  * @return The current status code. 200 is set by default.
  */
-unsigned int vla_response_get_status_code(vla_request *req);
+unsigned int vla_response_get_status_code(const vla_request *req);
 
 /**
  * Sets the value of the Content-Type header.
@@ -708,7 +711,7 @@ unsigned int vla_response_get_status_code(vla_request *req);
  *
  * @return 0 on success, nonzero on error.
  */
-int vla_response_set_content_type(vla_request *req, const char *type);
+int vla_response_set_content_type(const vla_request *req, const char *type);
 
 /**
  * Gets the value of the Content-Type header.
@@ -717,7 +720,7 @@ int vla_response_set_content_type(vla_request *req, const char *type);
  *
  * @return The value of the Content-Type header. NULL if it doesn't exist.
  */
-const char *vla_response_get_content_type(vla_request *req);
+const char *vla_response_get_content_type(const vla_request *req);
 
 /**
  * Sets the Set-Cookie header. If the cookie already exists, doesn't replace it,
@@ -730,7 +733,7 @@ const char *vla_response_get_content_type(vla_request *req);
  *
  * @return 0 on success, nonzero on error.
  */
-int vla_response_set_cookie(vla_request *req, const vla_cookie_t *cookie);
+int vla_response_set_cookie(const vla_request *req, const vla_cookie_t *cookie);
 
 /**
  * Appends data to the body of a response. Data is buffered and not actually
@@ -741,7 +744,7 @@ int vla_response_set_cookie(vla_request *req, const vla_cookie_t *cookie);
  *
  * @param fmt The format string.
  */
-void vla_printf(vla_request *req, const char *fmt, ...);
+void vla_printf(const vla_request *req, const char *fmt, ...);
 
 /**
  * Appends a string to the body of a response.
@@ -750,7 +753,7 @@ void vla_printf(vla_request *req, const char *fmt, ...);
  *
  * @param s The string to append to the body.
  */
-void vla_puts(vla_request *req, const char *s);
+void vla_puts(const vla_request *req, const char *s);
 
 /**
  * Appends a fixed amount of data to the body of a response.
@@ -761,7 +764,7 @@ void vla_puts(vla_request *req, const char *s);
  *
  * @param len The length of the data to append.
  */
-void vla_write(vla_request *req, const char *data, size_t len);
+void vla_write(const vla_request *req, const char *data, size_t len);
 
 /**
  * Sends data directly to the webserver over stderr. Unlike vla_printf, data is
@@ -771,7 +774,7 @@ void vla_write(vla_request *req, const char *data, size_t len);
  *
  * @param fmt The format string of the data to print.
  */
-void vla_eprintf(vla_request *req, const char *fmt, ...);
+void vla_eprintf(const vla_request *req, const char *fmt, ...);
 
 /**
  * Sends data directly to the webserver over stderr. Unlike vla_puts, data is
@@ -781,6 +784,6 @@ void vla_eprintf(vla_request *req, const char *fmt, ...);
  *
  * @param s The string of data to print.
  */
-void vla_eputs(vla_request *req, const char *s);
+void vla_eputs(const vla_request *req, const char *s);
 
 #endif // __VALHALLA_H__

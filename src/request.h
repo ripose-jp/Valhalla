@@ -42,7 +42,7 @@ typedef struct FCGX_Request FCGX_Request;
  * @return A newly allocated vla_request that is a child of ctx. Should be freed
  *         with talloc_free().
  */
-vla_request *request_new(vla_context *ctx, FCGX_Request *f_req);
+const vla_request *request_new(vla_context *ctx, FCGX_Request *f_req);
 
 /**
  * Iterates through every response header and value.
@@ -58,7 +58,7 @@ vla_request *request_new(vla_context *ctx, FCGX_Request *f_req);
  * @return 0 if every header was iterated through, -1 otherwise.
  */
 int response_header_iterate(
-    vla_request *req,
+    const vla_request *req,
     int (*callback)(const char *, const char *, void *),
     void *arg);
 
@@ -69,7 +69,7 @@ int response_header_iterate(
  *
  * @return The body of the response.
  */
-const char *response_get_body(vla_request *req);
+const char *response_get_body(const vla_request *req);
 
 /**
  * Gets the length of the body of the request.
@@ -78,6 +78,6 @@ const char *response_get_body(vla_request *req);
  *
  * @return The body length of the response body.
  */
-size_t response_get_body_length(vla_request *req);
+size_t response_get_body_length(const vla_request *req);
 
 #endif // __REQUEST_H__

@@ -654,7 +654,7 @@ static void request_populate(vla_context *ctx, vla_request *req)
  *==============================================================================
  */
 
-vla_request *request_new(vla_context *ctx, FCGX_Request *f_req)
+const vla_request *request_new(vla_context *ctx, FCGX_Request *f_req)
 {
     static const vla_middleware_func no_middleware[] = {NULL};
     static const void *no_middleware_args[] = {NULL};
@@ -692,7 +692,7 @@ vla_request *request_new(vla_context *ctx, FCGX_Request *f_req)
 }
 
 int response_header_iterate(
-    vla_request *req,
+    const vla_request *req,
     int (*callback)(const char *, const char *, void *),
     void *arg)
 {
@@ -715,12 +715,12 @@ int response_header_iterate(
     return 0;
 }
 
-const char *response_get_body(vla_request *req)
+const char *response_get_body(const vla_request *req)
 {
     return req->priv->res_body;
 }
 
-size_t response_get_body_length(vla_request *req)
+size_t response_get_body_length(const vla_request *req)
 {
     return sdslen(req->priv->res_body);
 }
@@ -731,7 +731,7 @@ size_t response_get_body_length(vla_request *req)
  *==============================================================================
  */
 
-const char *vla_request_query_get(vla_request *req, const char *key)
+const char *vla_request_query_get(const vla_request *req, const char *key)
 {
     khash_t(str) *map = req->priv->query_map;
     khiter_t it = kh_get(str, map, key);
@@ -743,7 +743,7 @@ const char *vla_request_query_get(vla_request *req, const char *key)
 }
 
 int vla_request_query_iterate(
-    vla_request *req,
+    const vla_request *req,
     int (*callback)(const char *, const char *, void *),
     void *arg)
 {
@@ -761,7 +761,7 @@ int vla_request_query_iterate(
     return 0;
 }
 
-const char *vla_request_header_get(vla_request *req, const char *header)
+const char *vla_request_header_get(const vla_request *req, const char *header)
 {
     khiter_t it = kh_get(strcase, req->priv->req_hdr_map, header);
     if (it == kh_end(req->priv->req_hdr_map))
@@ -773,7 +773,7 @@ const char *vla_request_header_get(vla_request *req, const char *header)
 }
 
 int vla_request_header_iterate(
-    vla_request *req,
+    const vla_request *req,
     int (*callback)(const char *, const char *, void *),
     void *arg)
 {
@@ -791,7 +791,7 @@ int vla_request_header_iterate(
     return 0;
 }
 
-const char *vla_request_cookie_get(vla_request *req, const char *name)
+const char *vla_request_cookie_get(const vla_request *req, const char *name)
 {
     khiter_t it = kh_get(str, req->priv->cookie_map, name);
     if (it == kh_end(req->priv->cookie_map))
@@ -802,7 +802,7 @@ const char *vla_request_cookie_get(vla_request *req, const char *name)
 }
 
 int vla_request_cookie_iterate(
-    vla_request *req,
+    const vla_request *req,
     int (*callback)(const char *, const char *, void *),
     void *arg)
 {
@@ -820,7 +820,7 @@ int vla_request_cookie_iterate(
     return 0;
 }
 
-const char *vla_request_body_get(vla_request *req, size_t size)
+const char *vla_request_body_get(const vla_request *req, size_t size)
 {
     if (size == 0)
     {
@@ -837,25 +837,25 @@ const char *vla_request_body_get(vla_request *req, size_t size)
     return priv->req_body;
 }
 
-size_t vla_request_body_get_length(vla_request *req)
+size_t vla_request_body_get_length(const vla_request *req)
 {
     return req->priv->req_body_len;
 }
 
-size_t vla_request_body_chunk(vla_request *req, void *buffer, size_t cap)
+size_t vla_request_body_chunk(const vla_request *req, void *buffer, size_t cap)
 {
     FCGX_Request *f_req = req->priv->f_req;
     char *buf = buffer;
     return FCGX_GetStr(buf, cap, f_req->in);
 }
 
-const char *vla_request_getenv(vla_request *req, const char *var)
+const char *vla_request_getenv(const vla_request *req, const char *var)
 {
     return FCGX_GetParam(var, req->priv->f_req->envp);
 }
 
 int vla_request_env_iterate(
-    vla_request *req,
+    const vla_request *req,
     int (*callback)(const char *, const char *, void *),
     void *arg)
 {
@@ -878,7 +878,7 @@ int vla_request_env_iterate(
     return 0;
 }
 
-enum vla_handle_code vla_request_next_func(vla_request *req)
+enum vla_handle_code vla_request_next_func(const vla_request *req)
 {
     vla_request_private *priv = req->priv;
     if (priv->info == NULL)
@@ -911,16 +911,16 @@ enum vla_handle_code vla_request_next_func(vla_request *req)
  */
 
 int vla_response_header_add(
-    vla_request *req,
+    const vla_request *req,
     const char *header,
     const char *value,
     size_t *ind)
 {
-    return header_add(req, req->priv->res_hdr_map, header, value, ind);
+    return header_add((void *)req, req->priv->res_hdr_map, header, value, ind);
 }
 
 int vla_response_header_replace(
-    vla_request *req,
+    const vla_request *req,
     const char *header,
     const char *value,
     size_t i)
@@ -944,7 +944,7 @@ int vla_response_header_replace(
 }
 
 int vla_response_header_replace_all(
-    vla_request *req,
+    const vla_request *req,
     const char *header,
     const char *value)
 {
@@ -963,18 +963,21 @@ int vla_response_header_replace_all(
     return 0;
 }
 
-int vla_response_header_remove(vla_request *req, const char *header, size_t i)
+int vla_response_header_remove(
+    const vla_request *req,
+    const char *header,
+    size_t i)
 {
     return header_remove(req->priv->res_hdr_map, header, i);
 }
 
-int vla_response_header_remove_all(vla_request *req, const char *header)
+int vla_response_header_remove_all(const vla_request *req, const char *header)
 {
     return header_remove_all(req->priv->res_hdr_map, header);
 }
 
 const char *vla_response_header_get(
-    vla_request *req,
+    const vla_request *req,
     const char *header,
     size_t i)
 {
@@ -988,10 +991,10 @@ const char *vla_response_header_get(
     {
         return NULL;
     }
-    return su_tstrdup(req, ha->arr[i]);
+    return su_tstrdup((void *)req, ha->arr[i]);
 }
 
-size_t vla_response_header_count(vla_request *req, const char *header)
+size_t vla_response_header_count(const vla_request *req, const char *header)
 {
     khiter_t it = kh_get(strcase, req->priv->res_hdr_map, header);
     if (it == kh_end(req->priv->res_hdr_map))
@@ -1002,7 +1005,7 @@ size_t vla_response_header_count(vla_request *req, const char *header)
     return ha->size;
 }
 
-int vla_response_set_status_code(vla_request *req, unsigned int code)
+int vla_response_set_status_code(const vla_request *req, unsigned int code)
 {
     req->priv->res_status = code;
     char buf[33];
@@ -1011,22 +1014,22 @@ int vla_response_set_status_code(vla_request *req, unsigned int code)
     return vla_response_header_replace_all(req, "Status", buf);
 }
 
-unsigned int vla_response_get_status_code(vla_request *req)
+unsigned int vla_response_get_status_code(const vla_request *req)
 {
     return req->priv->res_status;
 }
 
-int vla_response_set_content_type(vla_request *req, const char *type)
+int vla_response_set_content_type(const vla_request *req, const char *type)
 {
     return vla_response_header_replace_all(req, "Content-Type", type);
 }
 
-const char *vla_response_get_content_type(vla_request *req)
+const char *vla_response_get_content_type(const vla_request *req)
 {
     return vla_response_header_get(req, "Content-Type", 0);
 }
 
-int vla_response_set_cookie(vla_request *req, const vla_cookie_t *cookie)
+int vla_response_set_cookie(const vla_request *req, const vla_cookie_t *cookie)
 {
     if (cookie->name == NULL || cookie->value == NULL)
     {
@@ -1074,7 +1077,7 @@ int vla_response_set_cookie(vla_request *req, const vla_cookie_t *cookie)
     return ret;
 }
 
-void vla_printf(vla_request *req, const char *fmt, ...)
+void vla_printf(const vla_request *req, const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
@@ -1082,17 +1085,17 @@ void vla_printf(vla_request *req, const char *fmt, ...)
     va_end(ap);
 }
 
-void vla_puts(vla_request *req, const char *s)
+void vla_puts(const vla_request *req, const char *s)
 {
     req->priv->res_body = sdscat(req->priv->res_body, s);
 }
 
-void vla_write(vla_request *req, const char *data, size_t len)
+void vla_write(const vla_request *req, const char *data, size_t len)
 {
     req->priv->res_body = sdscatlen(req->priv->res_body, data, len);
 }
 
-void vla_eprintf(vla_request *req, const char *fmt, ...)
+void vla_eprintf(const vla_request *req, const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
@@ -1100,7 +1103,7 @@ void vla_eprintf(vla_request *req, const char *fmt, ...)
     va_end(ap);
 }
 
-void vla_eputs(vla_request *req, const char *s)
+void vla_eputs(const vla_request *req, const char *s)
 {
     FCGX_PutS(s, req->priv->f_req->err);
 }

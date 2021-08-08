@@ -137,7 +137,7 @@ static void start_request()
     pthread_join(tid, NULL);
 }
 
-enum vla_handle_code handler_get_query(vla_request *req, void *nul)
+enum vla_handle_code handler_get_query(const vla_request *req, void *nul)
 {
     const char *val = vla_request_query_get(req, "key");
     TEST_ASSERT_EQUAL_STRING("val", val);
@@ -160,7 +160,7 @@ void test_get_query()
     start_request();
 }
 
-enum vla_handle_code handler_get_query_utf8(vla_request *req, void *nul)
+enum vla_handle_code handler_get_query_utf8(const vla_request *req, void *nul)
 {
     const char *val = vla_request_query_get(req, "かぎ");
     TEST_ASSERT_EQUAL_STRING("値", val);
@@ -183,7 +183,7 @@ void test_get_query_utf8()
     start_request();
 }
 
-enum vla_handle_code handler_get_query_multi(vla_request *req, void *nul)
+enum vla_handle_code handler_get_query_multi(const vla_request *req, void *nul)
 {
     const char *val = vla_request_query_get(req, "key1");
     TEST_ASSERT_EQUAL_STRING("val1", val);
@@ -210,7 +210,7 @@ void test_get_query_multi()
     start_request();
 }
 
-enum vla_handle_code handler_get_query_case(vla_request *req, void *nul)
+enum vla_handle_code handler_get_query_case(const vla_request *req, void *nul)
 {
     const char *val = vla_request_query_get(req, "vAl1");
     TEST_ASSERT_NULL(val);
@@ -235,7 +235,9 @@ void test_get_query_case()
     start_request();
 }
 
-enum vla_handle_code handler_get_query_missing(vla_request *req, void *nul)
+enum vla_handle_code handler_get_query_missing(
+    const vla_request *req,
+    void *nul)
 {
     const char *val = vla_request_query_get(req, "fake");
     TEST_ASSERT_NULL(val);
@@ -285,7 +287,7 @@ int callback_query_iterate(const char *key, const char *val, void *num)
     return 0;
 }
 
-enum vla_handle_code handler_query_iterate(vla_request *req, void *num)
+enum vla_handle_code handler_query_iterate(const vla_request *req, void *num)
 {
     int ret = vla_request_query_iterate(req, callback_query_iterate, num);
     TEST_ASSERT_EQUAL_INT(0, ret);
@@ -318,7 +320,9 @@ int callback_query_iterate_early(const char *key, const char *val, void *num)
     return -1;
 }
 
-enum vla_handle_code handler_query_iterate_early(vla_request *req, void *num)
+enum vla_handle_code handler_query_iterate_early(
+    const vla_request *req,
+    void *num)
 {
     int ret = vla_request_query_iterate(req, callback_query_iterate_early, num);
     TEST_ASSERT_EQUAL_INT(1, ret);
@@ -351,7 +355,9 @@ int callback_query_iterate_empty(const char *key, const char *val, void *num)
     return 0;
 }
 
-enum vla_handle_code handler_query_iterate_empty(vla_request *req, void *num)
+enum vla_handle_code handler_query_iterate_empty(
+    const vla_request *req,
+    void *num)
 {
     int ret = vla_request_query_iterate(req, callback_query_iterate_empty, num);
     TEST_ASSERT_EQUAL_INT(0, ret);
@@ -375,7 +381,7 @@ void test_query_iterate_empty()
     TEST_ASSERT_EQUAL(0, count);
 }
 
-enum vla_handle_code handler_get_header(vla_request *req, void *nul)
+enum vla_handle_code handler_get_header(const vla_request *req, void *nul)
 {
     const char *val = vla_request_header_get(req, "x-test-header");
     TEST_ASSERT_EQUAL_STRING("test", val);
@@ -418,7 +424,9 @@ void test_get_header_case()
     start_request();
 }
 
-enum vla_handle_code handler_get_header_missing(vla_request *req, void *nul)
+enum vla_handle_code handler_get_header_missing(
+    const vla_request *req,
+    void *nul)
 {
     const char *val = vla_request_header_get(req, "x-test-header");
     TEST_ASSERT_NULL(val);
@@ -439,7 +447,7 @@ void test_get_header_missing()
     start_request();
 }
 
-enum vla_handle_code handler_get_cookie(vla_request *req, void *nul)
+enum vla_handle_code handler_get_cookie(const vla_request *req, void *nul)
 {
     const char *val = vla_request_cookie_get(req, "name");
     TEST_ASSERT_NOT_NULL(val);
@@ -511,7 +519,9 @@ void test_get_cookie_alt3()
     start_request();
 }
 
-enum vla_handle_code handler_get_cookie_multi(vla_request *req, void *nul)
+enum vla_handle_code handler_get_cookie_multi(
+    const vla_request *req,
+    void *nul)
 {
     const char *val = vla_request_cookie_get(req, "first");
     TEST_ASSERT_NOT_NULL(val);
@@ -592,7 +602,9 @@ void test_get_cookie_multi_alt3()
     start_request();
 }
 
-enum vla_handle_code handler_get_cookie_not_exist(vla_request *req, void *nul)
+enum vla_handle_code handler_get_cookie_not_exist(
+    const vla_request *req,
+    void *nul)
 {
     const char *val = vla_request_cookie_get(req, "name");
     TEST_ASSERT_NULL(val);
@@ -631,7 +643,7 @@ int callback_cookie_iterate(const char *name, const char *val, void *ptr)
     return 0;
 }
 
-enum vla_handle_code handler_cookie_iterate(vla_request *req, void *arr)
+enum vla_handle_code handler_cookie_iterate(const vla_request *req, void *arr)
 {
     int ret = vla_request_cookie_iterate(req, callback_cookie_iterate, arr);
     TEST_ASSERT_EQUAL_INT(0, ret);
@@ -668,7 +680,9 @@ int callback_cookie_iterate_early(const char *name, const char *val, void *ptr)
     return 0;
 }
 
-enum vla_handle_code handler_cookie_iterate_early(vla_request *req, void *nul)
+enum vla_handle_code handler_cookie_iterate_early(
+    const vla_request *req,
+    void *nul)
 {
     size_t i = 0;
     int ret = vla_request_cookie_iterate(
@@ -702,7 +716,9 @@ int callback_cookie_iterate_empty(const char *name, const char *val, void *ptr)
     return 0;
 }
 
-enum vla_handle_code handler_cookie_iterate_empty(vla_request *req, void *nul)
+enum vla_handle_code handler_cookie_iterate_empty(
+    const vla_request *req,
+    void *nul)
 {
     size_t i = 0;
     int ret = vla_request_cookie_iterate(
@@ -729,7 +745,7 @@ void test_cookie_iterate_empty()
     start_request();
 }
 
-enum vla_handle_code handler_get_body(vla_request *req, void *nul)
+enum vla_handle_code handler_get_body(const vla_request *req, void *nul)
 {
     const char *body = vla_request_body_get(req, 0);
     TEST_ASSERT_EQUAL_STRING(r_params.body, body);
@@ -753,7 +769,7 @@ void test_get_body()
     start_request();
 }
 
-enum vla_handle_code handler_get_body_empty(vla_request *req, void *nul)
+enum vla_handle_code handler_get_body_empty(const vla_request *req, void *nul)
 {
     const char *body = vla_request_body_get(req, 0);
     TEST_ASSERT_EQUAL_STRING(r_params.body, body);
@@ -777,7 +793,7 @@ void test_get_body_empty()
     start_request();
 }
 
-enum vla_handle_code handler_get_body_length(vla_request *req, void *nul)
+enum vla_handle_code handler_get_body_length(const vla_request *req, void *nul)
 {
     const char *body = vla_request_body_get(req, 3);
     TEST_ASSERT_EQUAL_STRING("Tea", body);
@@ -803,7 +819,9 @@ void test_get_body_length()
     start_request();
 }
 
-enum vla_handle_code handler_get_body_length_repeat(vla_request *req, void *nul)
+enum vla_handle_code handler_get_body_length_repeat(
+    const vla_request *req,
+    void *nul)
 {
     const char *body = vla_request_body_get(req, 3);
     TEST_ASSERT_EQUAL_STRING("Tea", body);
@@ -835,7 +853,9 @@ void test_get_body_length_repeat()
     start_request();
 }
 
-enum vla_handle_code handler_get_body_length_gt(vla_request *req, void *nul)
+enum vla_handle_code handler_get_body_length_gt(
+    const vla_request *req,
+    void *nul)
 {
     const char *body = vla_request_body_get(req, 200);
     TEST_ASSERT_EQUAL_STRING(r_params.body, body);
@@ -861,7 +881,7 @@ void test_get_body_length_gt()
     start_request();
 }
 
-enum vla_handle_code handler_get_body_chunk(vla_request *req, void *nul)
+enum vla_handle_code handler_get_body_chunk(const vla_request *req, void *nul)
 {
     char buf[256];
     size_t read = 0;
@@ -898,7 +918,9 @@ void test_get_body_chunk()
     start_request();
 }
 
-enum vla_handle_code handler_get_body_chunk_gt(vla_request *req, void *nul)
+enum vla_handle_code handler_get_body_chunk_gt(
+    const vla_request *req,
+    void *nul)
 {
     char buf[256];
     size_t read;
@@ -927,7 +949,9 @@ void test_get_body_chunk_gt()
     start_request();
 }
 
-enum vla_handle_code handler_get_body_chunk_empty(vla_request *req, void *nul)
+enum vla_handle_code handler_get_body_chunk_empty(
+    const vla_request *req,
+    void *nul)
 {
     char buf[256];
     size_t read;
@@ -955,7 +979,7 @@ void test_get_body_chunk_empty()
     start_request();
 }
 
-enum vla_handle_code handler_getenv(vla_request *req, void *nul)
+enum vla_handle_code handler_getenv(const vla_request *req, void *nul)
 {
     const char *body = vla_request_getenv(req, "REMOTE_ADDR");
     TEST_ASSERT_EQUAL_STRING("127.0.0.1", body);
@@ -985,7 +1009,7 @@ int callback_env_iterate(const char *key, const char *val, void *num)
     return 0;
 }
 
-enum vla_handle_code handler_env_iterate(vla_request *req, void *num)
+enum vla_handle_code handler_env_iterate(const vla_request *req, void *num)
 {
     size_t count = 0;
     int ret = vla_request_env_iterate(req, callback_env_iterate, &count);
@@ -1015,7 +1039,9 @@ int callback_env_iterate_early(const char *key, const char *val, void *num)
     return -1;
 }
 
-enum vla_handle_code handler_env_iterate_early(vla_request *req, void *num)
+enum vla_handle_code handler_env_iterate_early(
+    const vla_request *req,
+    void *num)
 {
     size_t count = 0;
     int ret = vla_request_env_iterate(req, callback_env_iterate_early, &count);
@@ -1038,14 +1064,14 @@ void test_env_iterate_early()
     start_request();
 }
 
-enum vla_handle_code handler_middleware(vla_request *req, void *num)
+enum vla_handle_code handler_middleware(const vla_request *req, void *num)
 {
     vla_response_set_content_type(req, "text/plain");
     vla_puts(req, "Success!");
     return VLA_HANDLE_RESPOND_TERM;
 }
 
-enum vla_handle_code middleware_middleware(vla_request *req, void *num)
+enum vla_handle_code middleware_middleware(const vla_request *req, void *num)
 {
     size_t *count = num;
     ++*count;
