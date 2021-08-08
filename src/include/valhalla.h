@@ -429,7 +429,7 @@ const char *vla_request_header_get(vla_request *req, const char *header);
  * @param req The vla_request to iterate over.
  *
  * @param callback The function to call for each value. The first argument is
- *                 the header, and the second is the value. Returns 0 to
+ *                 the header, and the second is the value. Return 0 to
  *                 continue iterating, nonzero to stop.
  *
  * @param arg The third argument to the callback function.
@@ -437,6 +437,36 @@ const char *vla_request_header_get(vla_request *req, const char *header);
  * @return 0 if every value was iterated over, 1 otherwise.
  */
 int vla_request_header_iterate(
+    vla_request *req,
+    int (*callback)(const char *, const char *, void *),
+    void *arg);
+
+/**
+ * Gets the value of the cookie with given name.
+ *
+ * @param req The request to get the cookie from.
+ *
+ * @param name The name of the cookie to get the value of.
+ *
+ * @return The value of the cookie if it exists, NULL otherwise. Belongs to the
+ *         request. Will be freed upon the completion of the request.
+ */
+const char *vla_request_cookie_get(vla_request *req, const char *name);
+
+/**
+ * Iterates over sent cookies.
+ *
+ * @param req The vla_request to iterate over.
+ *
+ * @param callback The function to call for each value. The first argument is
+ *                 the cookie name, and the second is the value. Return 0 to
+ *                 continue iterating, nonzero to stop.
+ *
+ * @param arg The third argument to the callback function.
+ *
+ * @return 0 if every value was iterated over, 1 otherwise.
+ */
+int vla_request_cookie_iterate(
     vla_request *req,
     int (*callback)(const char *, const char *, void *),
     void *arg);

@@ -89,6 +89,9 @@ typedef struct vla_request_private
     /* A hash map of query string key and values. */
     khash_t(str) *query_map;
 
+    /* A hash map of cookie names and values. */
+    khash_t(str) *cookie_map;
+
     /* Body of the request. */
     char *req_body;
 
@@ -232,6 +235,7 @@ static int request_destructor(vla_request *req)
     kh_destroy(strcase, req->priv->res_hdr_map);
     kh_destroy(strcase, req->priv->req_hdr_map);
     kh_destroy(str, req->priv->query_map);
+    kh_destroy(str, req->priv->cookie_map);
     sdsfree(req->priv->res_body);
     return 0;
 }
@@ -443,6 +447,68 @@ static int request_add_header(vla_request *req, const char *envstr)
 }
 
 /**
+ * Adds cookies from the 'Cookie' header.
+ *
+ * @param req The request to get the 'Cookie' header from and populate with
+ *            values.
+ *
+ * @return 0 on success, -1 otherwise.
+ */
+static int request_add_cookies(vla_request *req)
+{
+    const char *cookies = vla_request_header_get(req, "Cookie");
+    if (cookies == NULL)
+    {
+        return 0;
+    }
+
+    while (*cookies)
+    {
+        const char *name = cookies;
+        const char *name_end = su_strchrnul(name, '=');
+        size_t name_len = name_end - name;
+
+        if (*name_end == '\0')
+        {
+            return -1;
+        }
+
+        const char *value = name_end + 1;
+        const char *value_end = su_strchrnul(value, ';');
+        size_t value_len = value_end - value;
+
+        const char *t_name = su_tstrndup(req, name, name_len);
+        const char *t_value = su_tstrndup(req, value, value_len);
+
+        int ret;
+        khiter_t it = kh_put(str, req->priv->cookie_map, t_name, &ret);
+        switch (ret)
+        {
+        case -1: // Error
+        case 0: // Cookie already exists
+            talloc_free((char *)t_name);
+            talloc_free((char *)t_value);
+            return -1;
+
+        default:
+            kh_key(req->priv->cookie_map, it) = t_name;
+            kh_val(req->priv->cookie_map, it) = (char *)t_value;
+            break;
+        }
+
+        cookies = value_end;
+        if (*cookies == ';')
+        {
+            ++cookies;
+            while (*cookies && *cookies == ' ')
+            {
+                ++cookies;
+            }
+        }
+    }
+}
+
+/**
  * Fills the fields a vla_request with the relevant request information.
  *
  * @param ctx The vla_context attatched to this request.
@@ -576,6 +642,10 @@ static void request_populate(vla_context *ctx, vla_request *req)
             req->server_name = val;
         }
     }
+    if (request_add_cookies(req))
+    {
+        /* TODO: Logging. */
+    }
 }
 
 /*
@@ -600,6 +670,7 @@ vla_request *request_new(vla_context *ctx, FCGX_Request *f_req)
 
         .req_hdr_map = kh_init(strcase),
         .query_map = kh_init(str),
+        .cookie_map = kh_init(str),
         .req_body = NULL,
         .req_body_len = 0,
 
@@ -707,6 +778,35 @@ int vla_request_header_iterate(
     void *arg)
 {
     khash_t(strcase) *map = req->priv->req_hdr_map;
+    for (khiter_t it = 0; it < kh_end(map); ++it)
+    {
+        if (kh_exist(map, it))
+        {
+            if (callback(kh_key(map, it), kh_val(map, it), arg))
+            {
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+
+const char *vla_request_cookie_get(vla_request *req, const char *name)
+{
+    khiter_t it = kh_get(str, req->priv->cookie_map, name);
+    if (it == kh_end(req->priv->cookie_map))
+    {
+        return NULL;
+    }
+    return kh_val(req->priv->cookie_map, it);
+}
+
+int vla_request_cookie_iterate(
+    vla_request *req,
+    int (*callback)(const char *, const char *, void *),
+    void *arg)
+{
+    khash_t(str) *map = req->priv->cookie_map;
     for (khiter_t it = 0; it < kh_end(map); ++it)
     {
         if (kh_exist(map, it))

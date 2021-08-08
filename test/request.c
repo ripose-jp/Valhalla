@@ -48,6 +48,9 @@ typedef struct request_params
     /* Array of headers. */
     struct curl_slist *headers;
 
+    /* Cookies to set */
+    const char *cookies;
+
     /* Body of the request. */
     const char *body;
 } request_params;
@@ -65,6 +68,7 @@ void setUp(void)
     r_params.url = "http://localhost/request";
     r_params.method = "GET";
     r_params.headers = NULL;
+    r_params.cookies = NULL;
     r_params.body = NULL;
 
     c = curl_easy_init();
@@ -110,6 +114,8 @@ static void *thread_send_request(void *arg)
     curl_easy_setopt(c, CURLOPT_URL, r_params.url);
     curl_easy_setopt(c, CURLOPT_CUSTOMREQUEST, r_params.method);
     curl_easy_setopt(c, CURLOPT_HTTPHEADER, r_params.headers);
+    if (r_params.cookies)
+        curl_easy_setopt(c, CURLOPT_COOKIE, r_params.cookies);
     if (r_params.body)
         curl_easy_setopt(c, CURLOPT_POSTFIELDS, r_params.body);
 
@@ -426,6 +432,296 @@ void test_get_header_missing()
         ctx,
         VLA_HTTP_GET, route,
         handler_get_header_missing, NULL,
+        NULL
+    );
+    TEST_ASSERT_EQUAL_INT(0, ret);
+
+    start_request();
+}
+
+enum vla_handle_code handler_get_cookie(vla_request *req, void *nul)
+{
+    const char *val = vla_request_cookie_get(req, "name");
+    TEST_ASSERT_NOT_NULL(val);
+    TEST_ASSERT_EQUAL_STRING("value", val);
+    return VLA_HANDLE_RESPOND_TERM;
+}
+
+void test_get_cookie()
+{
+    const char *route = "/request";
+    int ret = vla_add_route(
+        ctx,
+        VLA_HTTP_GET, route,
+        handler_get_cookie, NULL,
+        NULL
+    );
+    TEST_ASSERT_EQUAL_INT(0, ret);
+
+    r_params.cookies = "name=value";
+
+    start_request();
+}
+
+void test_get_cookie_alt()
+{
+    const char *route = "/request";
+    int ret = vla_add_route(
+        ctx,
+        VLA_HTTP_GET, route,
+        handler_get_cookie, NULL,
+        NULL
+    );
+    TEST_ASSERT_EQUAL_INT(0, ret);
+
+    r_params.cookies = "name=value;";
+
+    start_request();
+}
+
+void test_get_cookie_alt2()
+{
+    const char *route = "/request";
+    int ret = vla_add_route(
+        ctx,
+        VLA_HTTP_GET, route,
+        handler_get_cookie, NULL,
+        NULL
+    );
+    TEST_ASSERT_EQUAL_INT(0, ret);
+
+    r_params.cookies = "name=value; ";
+
+    start_request();
+}
+
+void test_get_cookie_alt3()
+{
+    const char *route = "/request";
+    int ret = vla_add_route(
+        ctx,
+        VLA_HTTP_GET, route,
+        handler_get_cookie, NULL,
+        NULL
+    );
+    TEST_ASSERT_EQUAL_INT(0, ret);
+
+    r_params.cookies = "name=value;         ";
+
+    start_request();
+}
+
+enum vla_handle_code handler_get_cookie_multi(vla_request *req, void *nul)
+{
+    const char *val = vla_request_cookie_get(req, "first");
+    TEST_ASSERT_NOT_NULL(val);
+    TEST_ASSERT_EQUAL_STRING("fval", val);
+
+    val = vla_request_cookie_get(req, "second");
+    TEST_ASSERT_NOT_NULL(val);
+    TEST_ASSERT_EQUAL_STRING("sval", val);
+
+    val = vla_request_cookie_get(req, "third");
+    TEST_ASSERT_NOT_NULL(val);
+    TEST_ASSERT_EQUAL_STRING("tval", val);
+
+    return VLA_HANDLE_RESPOND_TERM;
+}
+
+void test_get_cookie_multi()
+{
+    const char *route = "/request";
+    int ret = vla_add_route(
+        ctx,
+        VLA_HTTP_GET, route,
+        handler_get_cookie_multi, NULL,
+        NULL
+    );
+    TEST_ASSERT_EQUAL_INT(0, ret);
+
+    r_params.cookies = "first=fval; second=sval; third=tval";
+
+    start_request();
+}
+
+void test_get_cookie_multi_alt()
+{
+    const char *route = "/request";
+    int ret = vla_add_route(
+        ctx,
+        VLA_HTTP_GET, route,
+        handler_get_cookie_multi, NULL,
+        NULL
+    );
+    TEST_ASSERT_EQUAL_INT(0, ret);
+
+    r_params.cookies = "first=fval; second=sval; third=tval;";
+
+    start_request();
+}
+
+void test_get_cookie_multi_alt2()
+{
+    const char *route = "/request";
+    int ret = vla_add_route(
+        ctx,
+        VLA_HTTP_GET, route,
+        handler_get_cookie_multi, NULL,
+        NULL
+    );
+    TEST_ASSERT_EQUAL_INT(0, ret);
+
+    r_params.cookies = "first=fval; second=sval;      third=tval";
+
+    start_request();
+}
+
+void test_get_cookie_multi_alt3()
+{
+    const char *route = "/request";
+    int ret = vla_add_route(
+        ctx,
+        VLA_HTTP_GET, route,
+        handler_get_cookie_multi, NULL,
+        NULL
+    );
+    TEST_ASSERT_EQUAL_INT(0, ret);
+
+    r_params.cookies = "first=fval; second=sval; third=tval;           ";
+
+    start_request();
+}
+
+enum vla_handle_code handler_get_cookie_not_exist(vla_request *req, void *nul)
+{
+    const char *val = vla_request_cookie_get(req, "name");
+    TEST_ASSERT_NULL(val);
+    return VLA_HANDLE_RESPOND_TERM;
+}
+
+void test_get_cookie_not_exist()
+{
+    const char *route = "/request";
+    int ret = vla_add_route(
+        ctx,
+        VLA_HTTP_GET, route,
+        handler_get_cookie_not_exist, NULL,
+        NULL
+    );
+    TEST_ASSERT_EQUAL_INT(0, ret);
+
+    start_request();
+}
+
+int callback_cookie_iterate(const char *name, const char *val, void *ptr)
+{
+    int *actual = ptr;
+    if (strcmp("one", name) == 0 && strcmp("val1", val) == 0)
+    {
+        actual[0] = 1;
+    }
+    else if (strcmp("two", name) == 0 && strcmp("val2", val) == 0)
+    {
+        actual[1] = 1;
+    }
+    else if (strcmp("three", name) == 0 && strcmp("val3", val) == 0)
+    {
+        actual[2] = 1;
+    }
+    return 0;
+}
+
+enum vla_handle_code handler_cookie_iterate(vla_request *req, void *arr)
+{
+    int ret = vla_request_cookie_iterate(req, callback_cookie_iterate, arr);
+    TEST_ASSERT_EQUAL_INT(0, ret);
+    return VLA_HANDLE_RESPOND_TERM;
+}
+
+void test_cookie_iterate()
+{
+    r_params.cookies = "one=val1; two=val2; three=val3";
+    int actual[] = {0, 0, 0};
+    const int expected[] = {1, 1, 1};
+
+    const char *route = "/request";
+    int ret = vla_add_route(
+        ctx,
+        VLA_HTTP_GET, route,
+        handler_cookie_iterate, actual,
+        NULL
+    );
+    TEST_ASSERT_EQUAL_INT(0, ret);
+
+    start_request();
+
+    TEST_ASSERT_EQUAL_INT_ARRAY(expected, actual, 3);
+}
+
+int callback_cookie_iterate_early(const char *name, const char *val, void *ptr)
+{
+    size_t *i = ptr;
+    if (++*i == 2)
+    {
+        return 1;
+    }
+    return 0;
+}
+
+enum vla_handle_code handler_cookie_iterate_early(vla_request *req, void *nul)
+{
+    size_t i = 0;
+    int ret = vla_request_cookie_iterate(
+        req, callback_cookie_iterate_early, &i
+    );
+    TEST_ASSERT_EQUAL_INT(1, ret);
+    TEST_ASSERT_EQUAL_size_t(2, i);
+    return VLA_HANDLE_RESPOND_TERM;
+}
+
+void test_cookie_iterate_early()
+{
+    r_params.cookies = "one=val1; two=val2; three=val3";
+
+    const char *route = "/request";
+    int ret = vla_add_route(
+        ctx,
+        VLA_HTTP_GET, route,
+        handler_cookie_iterate_early, NULL,
+        NULL
+    );
+    TEST_ASSERT_EQUAL_INT(0, ret);
+
+    start_request();
+}
+
+int callback_cookie_iterate_empty(const char *name, const char *val, void *ptr)
+{
+    size_t *i = ptr;
+    ++*i;
+    return 0;
+}
+
+enum vla_handle_code handler_cookie_iterate_empty(vla_request *req, void *nul)
+{
+    size_t i = 0;
+    int ret = vla_request_cookie_iterate(
+        req, callback_cookie_iterate_empty, &i
+    );
+    TEST_ASSERT_EQUAL_INT(0, ret);
+    TEST_ASSERT_EQUAL_size_t(0, i);
+    return VLA_HANDLE_RESPOND_TERM;
+}
+
+void test_cookie_iterate_empty()
+{
+    r_params.cookies = "";
+
+    const char *route = "/request";
+    int ret = vla_add_route(
+        ctx,
+        VLA_HTTP_GET, route,
+        handler_cookie_iterate_empty, NULL,
         NULL
     );
     TEST_ASSERT_EQUAL_INT(0, ret);
@@ -796,6 +1092,20 @@ int main(void)
     RUN_TEST(test_get_header);
     RUN_TEST(test_get_header_case);
     RUN_TEST(test_get_header_missing);
+
+    RUN_TEST(test_get_cookie);
+    RUN_TEST(test_get_cookie_alt);
+    RUN_TEST(test_get_cookie_alt2);
+    RUN_TEST(test_get_cookie_alt3);
+    RUN_TEST(test_get_cookie_multi);
+    RUN_TEST(test_get_cookie_multi_alt);
+    RUN_TEST(test_get_cookie_multi_alt2);
+    RUN_TEST(test_get_cookie_multi_alt3);
+    RUN_TEST(test_get_cookie_not_exist);
+
+    RUN_TEST(test_cookie_iterate);
+    RUN_TEST(test_cookie_iterate_early);
+    RUN_TEST(test_cookie_iterate_empty);
 
     RUN_TEST(test_get_body);
     RUN_TEST(test_get_body_empty);
