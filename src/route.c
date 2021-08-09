@@ -103,10 +103,19 @@ static int destruct_route_node(route_node_t *node)
  *
  * @param parent The parent of the route_node_t. Used for talloc garbage
  *               collection.
+ *
+ * @param type The type of the route node. Specifies behavior in the tree.
+ *
+ * @return An empty route node. NULL on error.
  */
 static route_node_t *init_route_node(void *parent, enum node_type type)
 {
     route_node_t *node = talloc(parent, route_node_t);
+    if (node == NULL)
+    {
+        /* TODO Logging */
+        return NULL;
+    }
     talloc_set_destructor(node, destruct_route_node);
     bzero(node, sizeof(route_node_t));
     node->type = type;
@@ -116,6 +125,12 @@ static route_node_t *init_route_node(void *parent, enum node_type type)
     case NODE_CAPTURE:
     default:
         node->map = kh_init(cn);
+        if (node->map == NULL)
+        {
+            /* TODO Logging */
+            talloc_free(node);
+            return NULL;
+        }
         break;
     }
     return node;
@@ -154,6 +169,11 @@ static route_node_t *create_route_path(route_node_t *root, const char *route)
                 type = NODE_ALL;
             }
             route_node_t *next = init_route_node(current, type);
+            if (next == NULL)
+            {
+                /* TODO Logging */
+                return NULL;
+            }
 
             int ret;
             it = kh_put(cn, current->map, *route, &ret);
@@ -274,12 +294,23 @@ route_info_t *route_info_create(
 
     /* Initialize the route_info_t. */
     route_info_t *info = talloc(ctx, route_info_t);
+    if (info == NULL)
+    {
+        /* TODO Logging */
+        return NULL;
+    }
     *info = (route_info_t) {
         .hdlr = hdlr,
         .hdlr_arg = hdlr_arg,
         .mw = talloc_array(info, vla_middleware_func, mw_len + 1),
         .mw_args = talloc_array(info, void *, mw_len + 1),
     };
+    if (info->mw == NULL || info->mw_args == NULL)
+    {
+        /* TOOD Logging */
+        talloc_free(info);
+        return NULL;
+    }
 
     /* Copy the middleware. */
     va_copy(cpy, ap);
@@ -332,6 +363,10 @@ int route_add(
 
     /* Initialize the route_info_t. */
     route_info_t *info = route_info_create(node, hdlr, hdlr_arg, ap);
+    if (info == NULL)
+    {
+        return -2;
+    }
 
     /* Insert the route info into the tree. */
     if (methods & VLA_HTTP_GET)

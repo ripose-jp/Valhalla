@@ -362,8 +362,10 @@ int vla_add_route(
  *
  * @param middleware_arg The second argument to a middleware function. Assumed
  *                       to be a void *.
+ *
+ * @return 0 on success, -1 on memory error.
  */
-void vla_set_not_found_handler(
+int vla_set_not_found_handler(
     vla_context *ctx,
     vla_handler_func handler,
     void *handler_arg,
@@ -373,8 +375,10 @@ void vla_set_not_found_handler(
  * Accepts incoming web requests. Blocks while waiting.
  *
  * @param ctx The context containing the route information.
+ *
+ * @return 0 if every request was handled successfully, -1 otherwise.
  */
-void vla_accept(vla_context *ctx);
+int vla_accept(vla_context *ctx);
 
 /*
  *==============================================================================
@@ -491,6 +495,7 @@ int vla_request_cookie_iterate(
  *
  * @return The body of the request up to size. The body is always nul terminated
  *         regardless of the "Content-Type" header. Belongs to the vla_request.
+ *         NULL if the memory could not be allocated.
  */
 const char *vla_request_body_get(const vla_request *req, size_t size);
 
@@ -543,7 +548,8 @@ const char *vla_request_getenv(const vla_request *req, const char *var);
  *
  * @param arg The third argument to the callback function.
  *
- * @return 0 if every value was iterated over, 1 otherwise.
+ * @return 0 if every value was iterated over, 1 if iterating stopped
+ *         prematurely, -1 on error.
  */
 int vla_request_env_iterate(
     const vla_request *req,
@@ -660,9 +666,9 @@ int vla_response_header_remove_all(const vla_request *req, const char *header);
  *
  * @param i The index of the header value.
  *
- * @return The value of the header, or NULL if it doesn't exist. Belongs to the
- *         caller. Can be freed with vla_free or will be automatically freed
- *         upon the completion of the request.
+ * @return The value of the header, or NULL if it doesn't exist or there was an
+ *         error. Belongs to the caller. Can be freed with vla_free or will be
+ *         automatically freed upon the completion of the request.
  */
 const char *vla_response_header_get(
     const vla_request *req,
@@ -743,8 +749,10 @@ int vla_response_set_cookie(const vla_request *req, const vla_cookie_t *cookie);
  * @param req The request to append data to.
  *
  * @param fmt The format string.
+ *
+ * @return 0 on success, -1 on error.
  */
-void vla_printf(const vla_request *req, const char *fmt, ...);
+int vla_printf(const vla_request *req, const char *fmt, ...);
 
 /**
  * Appends a string to the body of a response.
@@ -752,8 +760,10 @@ void vla_printf(const vla_request *req, const char *fmt, ...);
  * @param req The request to append data to.
  *
  * @param s The string to append to the body.
+ *
+ * @return 0 on success, -1 on error.
  */
-void vla_puts(const vla_request *req, const char *s);
+int vla_puts(const vla_request *req, const char *s);
 
 /**
  * Appends a fixed amount of data to the body of a response.
@@ -763,8 +773,10 @@ void vla_puts(const vla_request *req, const char *s);
  * @param data The data to append.
  *
  * @param len The length of the data to append.
+ *
+ * @return 0 on success, -1 on error.
  */
-void vla_write(const vla_request *req, const char *data, size_t len);
+int vla_write(const vla_request *req, const char *data, size_t len);
 
 /**
  * Sends data directly to the webserver over stderr. Unlike vla_printf, data is
@@ -773,8 +785,10 @@ void vla_write(const vla_request *req, const char *data, size_t len);
  * @param req The request containing the stderr stream.
  *
  * @param fmt The format string of the data to print.
+ *
+ * @return 0 on success, -1 on error.
  */
-void vla_eprintf(const vla_request *req, const char *fmt, ...);
+int vla_eprintf(const vla_request *req, const char *fmt, ...);
 
 /**
  * Sends data directly to the webserver over stderr. Unlike vla_puts, data is
@@ -783,7 +797,9 @@ void vla_eprintf(const vla_request *req, const char *fmt, ...);
  * @param req The request containing the stderr stream.
  *
  * @param s The string of data to print.
+ *
+ * @return 0 on success, -1 on error.
  */
-void vla_eputs(const vla_request *req, const char *s);
+int vla_eputs(const vla_request *req, const char *s);
 
 #endif // __VALHALLA_H__

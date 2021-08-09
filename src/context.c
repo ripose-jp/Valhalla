@@ -64,9 +64,19 @@ vla_context *vla_init()
     }
 
     vla_context *ctx = talloc(NULL, vla_context);
+    if (ctx == NULL)
+    {
+        return NULL;
+    }
     talloc_set_name_const(ctx, "Top Level Valhalla Context");
     talloc_set_destructor(ctx, context_destructor);
     ctx->route_tree_root = route_init_root(ctx);
+    if (ctx->route_tree_root == NULL)
+    {
+        /* TODO Logging */
+        talloc_free(ctx);
+        return NULL;
+    }
     ctx->unknown_info = NULL;
     return ctx;
 }
@@ -103,7 +113,7 @@ int vla_add_route(
     return ret;
 }
 
-void vla_set_not_found_handler(
+int vla_set_not_found_handler(
     vla_context *ctx,
     vla_handler_func handler,
     void *handler_arg,
@@ -115,6 +125,12 @@ void vla_set_not_found_handler(
     va_start(ap, handler_arg);
     ctx->unknown_info = route_info_create(ctx, handler, handler_arg, ap);
     va_end(ap);
+    if (ctx->unknown_info == NULL)
+    {
+        /* TODO Logging */
+        return -1;
+    }
+    return 0;
 }
 
 const route_info_t *context_get_route(
@@ -176,23 +192,32 @@ static int send_response(FCGX_Request *f_req, const vla_request *req)
     return 0;
 }
 
-void vla_accept(vla_context *ctx)
+int vla_accept(vla_context *ctx)
 {
     FCGX_Request f_req;
     if (FCGX_InitRequest(&f_req, 0, 0))
     {
         /* TODO: Debugging */
-        return;
+        return -1;
     }
 
     while (FCGX_Accept_r(&f_req) == 0)
     {
         const vla_request *req = request_new(ctx, &f_req);
+        if (req == NULL)
+        {
+            /* TODO error logging. */
+            goto error;
+        }
         enum vla_handle_code code = vla_request_next_func(req);
 
         if (code & VLA_RESPOND_FLAG)
         {
-            send_response(&f_req, req);
+            if (send_response(&f_req, req))
+            {
+                /* TODO Error logging */
+                goto error;
+            }
         }
 
         talloc_free((vla_request *)req);
@@ -205,4 +230,11 @@ void vla_accept(vla_context *ctx)
     }
 
     FCGX_Free(&f_req, 0);
+
+    return 0;
+
+error:
+    FCGX_Finish_r(&f_req);
+    FCGX_Free(&f_req, 0);
+    return -1;
 }

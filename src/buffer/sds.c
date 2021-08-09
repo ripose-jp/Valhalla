@@ -586,6 +586,8 @@ sds sdscatprintf(sds s, const char *fmt, ...) {
  * are often very slow. Moreover directly handling the sds string as
  * new data is concatenated provides a performance improvement.
  *
+ * Frees s if memory cannot be allocated.
+ *
  * However this function only handles an incompatible subset of printf-alike
  * format specifiers:
  *
@@ -607,6 +609,7 @@ sds sdscatfmt(sds s, char const *fmt, ...) {
      * can hold at least two times the format string itself. It's not the
      * best heuristic but seems to work in practice. */
     s = sdsMakeRoomFor(s, initlen + strlen(fmt)*2);
+    if (s==NULL) return NULL;
     va_start(ap,fmt);
     f = fmt;    /* Next format specifier byte to process. */
     i = initlen; /* Position of the next byte to write to dest str. */
@@ -619,6 +622,7 @@ sds sdscatfmt(sds s, char const *fmt, ...) {
         /* Make sure there is always space for at least 1 char. */
         if (sdsavail(s)==0) {
             s = sdsMakeRoomFor(s,1);
+            if (s==NULL) return NULL;
         }
 
         switch(*f) {
@@ -632,6 +636,7 @@ sds sdscatfmt(sds s, char const *fmt, ...) {
                 l = (next == 's') ? strlen(str) : sdslen(str);
                 if (sdsavail(s) < l) {
                     s = sdsMakeRoomFor(s,l);
+                    if (s==NULL) return NULL;
                 }
                 memcpy(s+i,str,l);
                 sdsinclen(s,l);
@@ -648,6 +653,7 @@ sds sdscatfmt(sds s, char const *fmt, ...) {
                     l = sdsll2str(buf,num);
                     if (sdsavail(s) < l) {
                         s = sdsMakeRoomFor(s,l);
+                        if (s==NULL) return NULL;
                     }
                     memcpy(s+i,buf,l);
                     sdsinclen(s,l);
@@ -665,6 +671,7 @@ sds sdscatfmt(sds s, char const *fmt, ...) {
                     l = sdsull2str(buf,unum);
                     if (sdsavail(s) < l) {
                         s = sdsMakeRoomFor(s,l);
+                        if (s==NULL) return NULL;
                     }
                     memcpy(s+i,buf,l);
                     sdsinclen(s,l);

@@ -49,6 +49,10 @@ char *su_tstrndup(void *ctx, const char *str, size_t len)
         ++size;
     }
     char *cpy = talloc_array(ctx, char, size + 1);
+    if (cpy == NULL)
+    {
+        return NULL;
+    }
     strncpy(cpy, str, size);
     cpy[size] = '\0';
     return cpy;
@@ -58,6 +62,10 @@ char *su_tstrdup(void *ctx, const char *str)
 {
     size_t size = strlen(str);
     char *cpy = talloc_array(ctx, char, size + 1);
+    if (cpy == NULL)
+    {
+        return NULL;
+    }
     strcpy(cpy, str);
     return cpy;
 }
@@ -101,6 +109,10 @@ char *su_url_encode_l(void *ctx, const char *str, size_t len)
     const char *pstr = str;
     const char *pstr_end = &str[len];
     char *buf = talloc_array(ctx, char, len * 3 + 1);
+    if (buf == NULL)
+    {
+        return NULL;
+    }
     char *pbuf = buf;
     while (pstr < pstr_end)
     {
@@ -138,6 +150,10 @@ char *su_url_decode_l(void *ctx, const char *str, size_t len)
     const char *pstr = str;
     const char *pstr_end = &str[len];
     char *buf = talloc_array(ctx, char, len + 1);
+    if (buf == NULL)
+    {
+        return NULL;
+    }
     char *pbuf = buf;
     while (pstr < pstr_end)
     {

@@ -52,7 +52,7 @@ const char *su_strchrnul(const char *s, int c);
  *
  * @param len The maximum number of characters to duplicate.
  *
- * @return A talloc allocated string that is a child of ctx.
+ * @return A talloc allocated string that is a child of ctx. NULL on error.
  */
 char *su_tstrndup(void *ctx, const char *str, size_t len);
 
@@ -65,7 +65,7 @@ char *su_tstrndup(void *ctx, const char *str, size_t len);
  *
  * @param len The maximum number of characters to duplicate.
  *
- * @return A talloc allocated string that is a child of ctx.
+ * @return A talloc allocated string that is a child of ctx. NULL on error.
  */
 char *su_tstrdup(void *ctx, const char *str);
 
@@ -76,7 +76,7 @@ char *su_tstrdup(void *ctx, const char *str);
  *
  * @param str The string to URL encode.
  *
- * @return The string encoded into URL-encoding.
+ * @return The string encoded into URL-encoding. NULL on error.
  */
 char *su_url_encode(void *ctx, const char *str);
 
@@ -89,7 +89,7 @@ char *su_url_encode(void *ctx, const char *str);
  *
  * @param len The length of the string.
  *
- * @return The string encoded into URL-encoding.
+ * @return The string encoded into URL-encoding. NULL on error.
  */
 char *su_url_encode_l(void *ctx, const char *str, size_t len);
 
@@ -100,7 +100,7 @@ char *su_url_encode_l(void *ctx, const char *str, size_t len);
  *
  * @param str The URL-encoded string to decode.
  *
- * @return A URL decoded into UTF-8.
+ * @return A URL decoded into UTF-8. NULL on error.
  */
 char *su_url_decode(void *ctx, const char *str);
 
@@ -113,7 +113,7 @@ char *su_url_decode(void *ctx, const char *str);
  *
  * @param len The length of the string.
  *
- * @return A URL decoded into UTF-8.
+ * @return A URL decoded into UTF-8. NULL on error.
  */
 char *su_url_decode_l(void *ctx, const char *str, size_t len);
 

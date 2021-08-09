@@ -57,7 +57,7 @@ typedef struct route_info_t
  *
  * @param ctx The talloc context this root should belong to.
  *
- * @return A route tree.
+ * @return A route tree. NULL if memory could not be allocated.
  */
 route_node_t *route_init_root(void *ctx);
 
@@ -73,7 +73,8 @@ route_node_t *route_init_root(void *ctx);
  * @param ap A va_list containing alternating pointers to vla_middleware_func
  *           and void * arguments. Terminated with a NULL vla_middleware_func.
  *
- * @return A route_info_t containing a copy of all the route information.
+ * @return A route_info_t containing a copy of all the route information. NULL
+ *         if memory could not be allocated.
  */
 route_info_t *route_info_create(
     void *ctx,
@@ -102,7 +103,7 @@ route_info_t *route_info_create(
  *           and void * arguments. Terminated with a NULL vla_middleware_func.
  *
  * @return 0 on success, 1 if the route overlaps with another, -1 if the route
- *         doesn't start with '/'.
+ *         doesn't start with '/', -2 if memory could not be allocated.
  */
 int route_add(
     route_node_t *root,

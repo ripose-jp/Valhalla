@@ -652,7 +652,6 @@ enum vla_handle_code handler_cookie_iterate(const vla_request *req, void *arr)
 
 void test_cookie_iterate()
 {
-    r_params.cookies = "one=val1; two=val2; three=val3";
     int actual[] = {0, 0, 0};
     const int expected[] = {1, 1, 1};
 
@@ -664,6 +663,8 @@ void test_cookie_iterate()
         NULL
     );
     TEST_ASSERT_EQUAL_INT(0, ret);
+
+    r_params.cookies = "one=val1; two=val2; three=val3";
 
     start_request();
 

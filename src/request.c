@@ -145,13 +145,23 @@ typedef struct header_value_array
  *
  * @param cap The initial capacity of the array.
  *
- * @return A new header_value_array with an initial capacity of cap.
+ * @return A new header_value_array with an initial capacity of cap. NULL on
+ *         error.
  */
 static header_array *init_header_array(void *ctx, size_t cap)
 {
     header_array *ha = talloc(ctx, header_array);
+    if (ha == NULL)
+    {
+        return NULL;
+    }
     ha->size = 0;
     ha->arr = talloc_array(ha, char *, cap);
+    if (ha->arr == NULL)
+    {
+        talloc_free(ha);
+        return NULL;
+    }
     return ha;
 }
 
@@ -162,16 +172,24 @@ static header_array *init_header_array(void *ctx, size_t cap)
  *
  * @param val The value to push onto the array. Must be talloc allocated.
  *            Takes ownership.
+ *
+ * @return 0 on success, -1 if memory cannot be allocated.
  */
-static void header_array_push(header_array *ha, char *val)
+static int header_array_push(header_array *ha, char *val)
 {
     size_t cap = talloc_array_length(ha->arr);
     if (ha->size >= cap)
     {
-        ha->arr = talloc_realloc(ha, ha->arr, char *, cap * 2);
+        char **arr = talloc_realloc(ha, ha->arr, char *, cap * 2);
+        if (arr == NULL)
+        {
+            return -1;
+        }
+        ha->arr = arr;
     }
     talloc_steal(ha->arr, val);
     ha->arr[ha->size++] = val;
+    return 0;
 }
 
 /**
@@ -246,8 +264,10 @@ static int request_destructor(vla_request *req)
  * @param req The vla_request to add the formatted values to.
  *
  * @param query The raw query string.
+ *
+ * @return 0 on success, -1 on error.
  */
-static void pop_query_map(vla_request *req, const char *query)
+static int pop_query_map(vla_request *req, const char *query)
 {
     khash_t(str) *map = req->priv->query_map;
 
@@ -266,7 +286,16 @@ static void pop_query_map(vla_request *req, const char *query)
         size_t vallen = valendptr - val;
 
         char *t_key = su_url_decode_l(req, key, keylen);
+        if (t_key == NULL)
+        {
+            return -1;
+        }
         char *t_val = su_url_decode_l(req, val, vallen);
+        if (t_val == NULL)
+        {
+            talloc_free(t_key);
+            return -1;
+        }
 
         int ret = 0;
         khiter_t it = kh_put(str, map, t_key, &ret);
@@ -287,7 +316,7 @@ static void pop_query_map(vla_request *req, const char *query)
             talloc_free(t_key);
             talloc_free(t_val);
             /* TODO: Logging */
-            return;
+            return -1;
         }
         kh_val(map, it) = t_val;
 
@@ -297,6 +326,8 @@ static void pop_query_map(vla_request *req, const char *query)
             query += 1;
         }
     }
+
+    return 0;
 }
 
 /**
@@ -332,16 +363,37 @@ static int header_add(
 
     case 1: // Key doesn't exist
     case 2: // Key did exist, doesn't anymore
-        kh_key(map, it) = su_tstrdup(req, header);
-        kh_val(map, it) = init_header_array((void *)kh_key(map, it), 1);
+    {
+        char *t_key = su_tstrdup(req, header);
+        if (t_key == NULL)
+        {
+            kh_del(strcase, map, it);
+            return -1;
+        }
+        kh_key(map, it) = t_key;
+
+        header_array *ha = init_header_array(t_key, 1);
+        if (ha == NULL)
+        {
+            talloc_free(t_key);
+            kh_del(strcase, map, it);
+            return -1;
+        }
+        kh_val(map, it) = ha;
         break;
+    }
 
     default: // Error
         return -1;
     }
 
     header_array *ha = kh_val(map, it);
-    header_array_push(ha, su_tstrdup((void *)kh_key(map, it), value));
+    char *t_val = su_tstrdup((void *)kh_key(map, it), value);
+    if (t_val == NULL)
+    {
+        return -1;
+    }
+    header_array_push(ha, t_val);
     if (ind)
     {
         *ind = ha->size - 1;
@@ -429,9 +481,10 @@ static int request_add_header(vla_request *req, const char *envstr)
 
     /* Get the value of the header. */
     const char *val = strchr(envstr, '=');
-    if (!val)
+    if (val == NULL)
     {
         /* TODO: error logging */
+        return -1;
     }
     val += 1;
 
@@ -477,22 +530,34 @@ static int request_add_cookies(vla_request *req)
         const char *value_end = su_strchrnul(value, ';');
         size_t value_len = value_end - value;
 
-        const char *t_name = su_tstrndup(req, name, name_len);
-        const char *t_value = su_tstrndup(req, value, value_len);
+        char *t_name = su_tstrndup(req, name, name_len);
+        if (t_name == NULL)
+        {
+            return -1;
+        }
+        char *t_value = su_tstrndup(req, value, value_len);
+        if (t_value == NULL)
+        {
+            talloc_free(t_name);
+            return -1;
+        }
 
         int ret;
         khiter_t it = kh_put(str, req->priv->cookie_map, t_name, &ret);
         switch (ret)
         {
         case -1: // Error
-        case 0: // Cookie already exists
             talloc_free((char *)t_name);
             talloc_free((char *)t_value);
             return -1;
 
-        default:
+        case 0: // Cookie already exists
+            talloc_free((char *)kh_key(req->priv->cookie_map, it));
+            talloc_free((char *)kh_val(req->priv->cookie_map, it));
+        case 1: // Cookie doesn't exist
+        case 2: // Cookie was deleted
             kh_key(req->priv->cookie_map, it) = t_name;
-            kh_val(req->priv->cookie_map, it) = (char *)t_value;
+            kh_val(req->priv->cookie_map, it) = t_value;
             break;
         }
 
@@ -506,6 +571,8 @@ static int request_add_cookies(vla_request *req)
             }
         }
     }
+
+    return 0;
 }
 
 /**
@@ -514,8 +581,10 @@ static int request_add_cookies(vla_request *req)
  * @param ctx The vla_context attatched to this request.
  *
  * @param req The request to populate the fields of.
+ *
+ * @return 0 on success, -1 on error.
  */
-static void request_populate(vla_context *ctx, vla_request *req)
+static int request_populate(vla_context *ctx, vla_request *req)
 {
     for (const char **str = (const char **)req->priv->f_req->envp; *str; ++str)
     {
@@ -526,12 +595,17 @@ static void request_populate(vla_context *ctx, vla_request *req)
             if (request_add_header(req, *str))
             {
                 /* TODO error logging */
+                return -1;
             }
         }
         else if (HAS_PREFIX(*str, QUERY_STRING))
         {
             req->query_str = val;
-            pop_query_map(req, val);
+            if (pop_query_map(req, val))
+            {
+                /* TODO error logging */
+                return -1;
+            }
         }
         else if (HAS_PREFIX(*str, REQUEST_METHOD))
         {
@@ -645,7 +719,10 @@ static void request_populate(vla_context *ctx, vla_request *req)
     if (request_add_cookies(req))
     {
         /* TODO: Logging. */
+        return -1;
     }
+
+    return 0;
 }
 
 /*
@@ -660,11 +737,21 @@ const vla_request *request_new(vla_context *ctx, FCGX_Request *f_req)
     static const void *no_middleware_args[] = {NULL};
 
     vla_request *req = talloc(ctx, vla_request);
+    if (req == NULL)
+    {
+        return NULL;
+    }
     talloc_set_destructor(req, request_destructor);
     talloc_set_name_const(req, "Request not yet processed");
     bzero(req, sizeof(vla_request));
 
     req->priv = talloc(req, vla_request_private);
+    if (req->priv == NULL)
+    {
+        /* TODO Logging */
+        talloc_free(req);
+        return NULL;
+    }
     *req->priv = (vla_request_private) {
         .f_req = f_req,
 
@@ -680,13 +767,38 @@ const vla_request *request_new(vla_context *ctx, FCGX_Request *f_req)
 
         .mw_i = 0,
     };
-    request_populate(ctx, req);
+    if (req->priv->req_hdr_map == NULL ||
+        req->priv->query_map == NULL ||
+        req->priv->cookie_map == NULL ||
+        req->priv->res_hdr_map == NULL ||
+        req->priv->res_body == NULL)
+    {
+        /* TODO Logging */
+        talloc_free(req);
+        return NULL;
+    }
+    if (request_populate(ctx, req))
+    {
+        /* TODO Logging */
+        talloc_free(req);
+        return NULL;
+    }
     req->priv->info = context_get_route(ctx, req->document_uri, req->method);
-    vla_response_set_status_code(req, 200);
+    if (vla_response_set_status_code(req, 200))
+    {
+        /* TODO error logging */
+        talloc_free(req);
+        return NULL;
+    }
 
-    talloc_set_name(
+    const char *name = talloc_set_name(
         req, "Request from %s:%s", req->remote_addr, req->remote_port
     );
+    if (name == NULL)
+    {
+        /* TODO error logging */
+        return NULL;
+    }
 
     return req;
 }
@@ -722,6 +834,10 @@ const char *response_get_body(const vla_request *req)
 
 size_t response_get_body_length(const vla_request *req)
 {
+    if (req->priv->res_body == NULL)
+    {
+        return 0;
+    }
     return sdslen(req->priv->res_body);
 }
 
@@ -831,6 +947,10 @@ const char *vla_request_body_get(const vla_request *req, size_t size)
     if (!priv->req_body)
     {
         priv->req_body = talloc_array(req, char, size + 1);
+        if (priv->req_body == NULL)
+        {
+            return NULL;
+        }
         priv->req_body_len = FCGX_GetStr(priv->req_body, size, priv->f_req->in);
         priv->req_body[priv->req_body_len] = '\0';
     }
@@ -865,6 +985,10 @@ int vla_request_env_iterate(
         assert(val != NULL + 1);
         size_t key_len = val - *str - 1;
         char *key = talloc_array(req, char, key_len + 1);
+        if (key == NULL)
+        {
+            return -1;
+        }
         strncpy(key, *str, key_len);
         key[key_len] = '\0';
 
@@ -938,7 +1062,12 @@ int vla_response_header_replace(
     {
         return -1;
     }
-    header_array_replace(ha, i, su_tstrdup(NULL, value));
+    char *t_val = su_tstrdup(NULL, value);
+    if (t_val == NULL)
+    {
+        return -1;
+    }
+    header_array_replace(ha, i, t_val);;
 
     return 0;
 }
@@ -958,7 +1087,17 @@ int vla_response_header_replace_all(
 
     header_array *ha = kh_val(map, it);
     header_array_clear(ha);
-    header_array_push(ha, su_tstrdup(NULL, value));
+    char *t_val = su_tstrdup(NULL, value);
+    if (t_val == NULL)
+    {
+        /* TODO Error Logging */
+        return -1;
+    }
+    if (header_array_push(ha, t_val))
+    {
+        /* TODO Error Logging */
+        return -1;
+    }
 
     return 0;
 }
@@ -1037,7 +1176,15 @@ int vla_response_set_cookie(const vla_request *req, const vla_cookie_t *cookie)
     }
 
     sds buf = sdsempty();
+    if (buf == NULL)
+    {
+        return -1;
+    }
     buf = sdscatfmt(buf, "%s=%s", cookie->name, cookie->value);
+    if (buf == NULL)
+    {
+        return -1;
+    }
     if (cookie->expires)
     {
         struct tm utc;
@@ -1047,63 +1194,118 @@ int vla_response_set_cookie(const vla_request *req, const vla_cookie_t *cookie)
         timestr[sizeof(timestr) - 1] = '\0';
 
         buf = sdscatfmt(buf, "; Expires=%s", timestr);
+        if (buf == NULL)
+        {
+            return -1;
+        }
     }
     if (cookie->maxage)
     {
         buf = sdscatfmt(buf, "; Max-Age=%U", cookie->maxage);
+        if (buf == NULL)
+        {
+            return -1;
+        }
     }
     if (cookie->domain)
     {
         buf = sdscatfmt(buf, "; Domain=%s", cookie->domain);
+        if (buf == NULL)
+        {
+            return -1;
+        }
     }
     if (cookie->path)
     {
         buf = sdscatfmt(buf, "; Path=%s", cookie->path);
+        if (buf == NULL)
+        {
+            return -1;
+        }
     }
     if (cookie->secure)
     {
         buf = sdscat(buf, "; Secure");
+        if (buf == NULL)
+        {
+            return -1;
+        }
     }
     if (cookie->httponly)
     {
         buf = sdscat(buf, "; HttpOnly");
+        if (buf == NULL)
+        {
+            return -1;
+        }
     }
     if (cookie->samesite)
     {
         buf = sdscatfmt(buf, "; SameSite=%s", cookie->samesite);
+        if (buf == NULL)
+        {
+            return -1;
+        }
     }
     int ret = vla_response_header_add(req, "Set-Cookie", buf, NULL);
     sdsfree(buf);
     return ret;
 }
 
-void vla_printf(const vla_request *req, const char *fmt, ...)
+int vla_printf(const vla_request *req, const char *fmt, ...)
 {
+    if (req->priv->res_body == NULL)
+    {
+        return -1;
+    }
     va_list ap;
     va_start(ap, fmt);
     req->priv->res_body = sdscatvprintf(req->priv->res_body, fmt, ap);
     va_end(ap);
+    return 0;
 }
 
-void vla_puts(const vla_request *req, const char *s)
+int vla_puts(const vla_request *req, const char *s)
 {
+    if (req->priv->res_body == NULL)
+    {
+        return -1;
+    }
     req->priv->res_body = sdscat(req->priv->res_body, s);
+    return 0;
 }
 
-void vla_write(const vla_request *req, const char *data, size_t len)
+int vla_write(const vla_request *req, const char *data, size_t len)
 {
+    if (req->priv->res_body == NULL)
+    {
+        return -1;
+    }
     req->priv->res_body = sdscatlen(req->priv->res_body, data, len);
+    if (req->priv->res_body == NULL)
+    {
+        return -1;
+    }
+    return 0;
 }
 
-void vla_eprintf(const vla_request *req, const char *fmt, ...)
+int vla_eprintf(const vla_request *req, const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
-    FCGX_VFPrintF(req->priv->f_req->err, fmt, ap);
+    if (FCGX_VFPrintF(req->priv->f_req->err, fmt, ap) < 0)
+    {
+        return -1;
+    }
     va_end(ap);
+    return 0;
 }
 
-void vla_eputs(const vla_request *req, const char *s)
+int vla_eputs(const vla_request *req, const char *s)
 {
-    FCGX_PutS(s, req->priv->f_req->err);
+    if (FCGX_PutS(s, req->priv->f_req->err) < 0)
+    {
+        return -1;
+    }
+    return 0;
 }

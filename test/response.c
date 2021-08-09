@@ -1467,7 +1467,8 @@ void test_set_cookie_multi()
 
 enum vla_handle_code handler_printf(const vla_request *req, void *nul)
 {
-    vla_printf(req, "%s\n%d", "Test", -3);
+    int ret = vla_printf(req, "%s\n%d", "Test", -3);
+    TEST_ASSERT_EQUAL_INT(0, ret);
     return VLA_HANDLE_RESPOND_TERM;
 }
 
@@ -1488,7 +1489,8 @@ void test_printf()
 
 enum vla_handle_code handler_puts(const vla_request *req, void *nul)
 {
-    vla_puts(req, "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+    int ret = vla_puts(req, "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+    TEST_ASSERT_EQUAL_INT(0, ret);
     return VLA_HANDLE_RESPOND_TERM;
 }
 
@@ -1509,7 +1511,8 @@ void test_puts()
 
 enum vla_handle_code handler_write(const vla_request *req, void *nul)
 {
-    vla_write(req, "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ", 10);
+    int ret = vla_write(req, "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ", 10);
+    TEST_ASSERT_EQUAL_INT(0, ret);
     return VLA_HANDLE_RESPOND_TERM;
 }
 
@@ -1531,7 +1534,8 @@ void test_write()
 enum vla_handle_code handler_write_binary(const vla_request *req, void *nul)
 {
     const char write[] = "\x00\x00\x00\x90\x90";
-    vla_write(req, write, sizeof(write) - 1);
+    int ret = vla_write(req, write, sizeof(write) - 1);
+    TEST_ASSERT_EQUAL_INT(0, ret);
     return VLA_HANDLE_RESPOND_TERM;
 }
 
@@ -1553,10 +1557,16 @@ void test_write_binary()
 
 enum vla_handle_code handler_multi_print(const vla_request *req, void *nul)
 {
-    vla_puts(req, "1: puts\n");
-    vla_printf(req, "%u: %s%c", 2, "printf", '\n');
+    int ret = vla_puts(req, "1: puts\n");
+    TEST_ASSERT_EQUAL_INT(0, ret);
+
+    ret = vla_printf(req, "%u: %s%c", 2, "printf", '\n');
+    TEST_ASSERT_EQUAL_INT(0, ret);
+
     char bin[] = "3: \x90\x90\x00\x27\xf7\x22";
-    vla_write(req, bin, sizeof(bin) - 1);
+    ret = vla_write(req, bin, sizeof(bin) - 1);
+    TEST_ASSERT_EQUAL_INT(0, ret);
+
     return VLA_HANDLE_RESPOND_TERM;
 }
 
