@@ -24,7 +24,7 @@ sudo make install
 ```c
 #include <valhalla.h>
 
-enum vla_handle_code handler(vla_request *req, void *unused)
+enum vla_handle_code handler(const vla_request *req, void *unused)
 {
     vla_response_set_content_type(req, "text/html");
     vla_puts(req, "<h1>Welcome to Valhalla!</h1>");
@@ -32,7 +32,7 @@ enum vla_handle_code handler(vla_request *req, void *unused)
     return VLA_HANDLE_RESPOND_ACCEPT;
 }
 
-void main()
+int main()
 {
     vla_context *ctx = vla_init();
     vla_add_route(ctx,
@@ -42,6 +42,7 @@ void main()
     );
     vla_accept(ctx);
     vla_free(ctx);
+    return 0;
 }
 ```
 This code will send all GET requests to the `handler` function which will then
