@@ -43,19 +43,6 @@ typedef struct vla_context
     route_info_t *unknown_info;
 } vla_context;
 
-/**
- * Destructor for vla_context.
- *
- * @param ctx The val_context to destruct.
- *
- * @return 0 on success, -1 on failure.
- */
-static int context_destructor(vla_context *ctx)
-{
-    /* TODO */
-    return 0;
-}
-
 vla_context *vla_init()
 {
     if (FCGX_Init())
@@ -69,7 +56,6 @@ vla_context *vla_init()
         return NULL;
     }
     talloc_set_name_const(ctx, "Top Level Valhalla Context");
-    talloc_set_destructor(ctx, context_destructor);
     ctx->route_tree_root = route_init_root(ctx);
     if (ctx->route_tree_root == NULL)
     {
