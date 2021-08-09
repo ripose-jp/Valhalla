@@ -766,6 +766,20 @@ int vla_printf(const vla_request *req, const char *fmt, ...);
 int vla_puts(const vla_request *req, const char *s);
 
 /**
+ * Appends the contents of a file to the body of the response.
+ *
+ * @param req The request to append the file contents to.
+ *
+ * @param path The path to the file.
+ *
+ * @param bin Nonzero if the file is a binary file, 0 if it should be read as
+ *            text.
+ *
+ * @return 0 on success, 1 if the file doesn't exist, -1 on error.
+ */
+int vla_putf(const vla_request *req, const char *path, int bin);
+
+/**
  * Appends a fixed amount of data to the body of a response.
  *
  * @param req The request to append data to.

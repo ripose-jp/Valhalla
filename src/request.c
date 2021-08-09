@@ -29,6 +29,7 @@
 
 #include <assert.h>
 #include <time.h>
+#include <stdio.h>
 
 #include <fcgiapp.h>
 #include <talloc.h>
@@ -1272,6 +1273,42 @@ int vla_puts(const vla_request *req, const char *s)
         return -1;
     }
     req->priv->res_body = sdscat(req->priv->res_body, s);
+    return 0;
+}
+
+int vla_putf(const vla_request *req, const char *path, int bin)
+{
+    if (req->priv->res_body == NULL)
+    {
+        return -1;
+    }
+
+    FILE *f = fopen(path, bin ? "rb" : "r");
+    if (f == NULL)
+    {
+        return 1;
+    }
+
+    char buf[BUFSIZ];
+    size_t read = 0;
+    do
+    {
+        read = fread(buf, sizeof(char), BUFSIZ, f);
+        req->priv->res_body = sdscatlen(req->priv->res_body, buf, read);
+        if (req->priv->res_body == NULL)
+        {
+            fclose(f);
+            return -1;
+        }
+    } while (read == BUFSIZ);
+
+    if (!feof(f))
+    {
+        fclose(f);
+        return -1;
+    }
+
+    fclose(f);
     return 0;
 }
 

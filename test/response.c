@@ -283,6 +283,19 @@ void helper_header_not_exist(const char *hdr)
     }
 }
 
+/**
+ * Writes a binary file with the specified names and contents. Truncates it if
+ * it already exists.
+ */
+void helper_create_local_file(const char *name, void *contents, size_t len)
+{
+    FILE *f = fopen(name, "w+b");
+    TEST_ASSERT_NOT_NULL_MESSAGE(f, "Could not open file");
+    size_t wrote = fwrite(contents, 1, len, f);
+    TEST_ASSERT_EQUAL_size_t(len, wrote);
+    fclose(f);
+}
+
 enum vla_handle_code handler_header_add(const vla_request *req, void *nul)
 {
     int ret = vla_response_header_add(req, "X-Test-Header", "Cheese", NULL);
@@ -1509,6 +1522,56 @@ void test_puts()
     TEST_ASSERT_EQUAL_STRING("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ", res_body);
 }
 
+enum vla_handle_code handler_putf(const vla_request *req, void *nul)
+{
+    int ret = vla_putf(req, "putf.txt", 0);
+    TEST_ASSERT_EQUAL_INT(0, ret);
+    return VLA_HANDLE_RESPOND_TERM;
+}
+
+void test_putf()
+{
+    int ret = vla_add_route(
+        ctx,
+        VLA_HTTP_GET, "/response",
+        handler_putf, NULL,
+        NULL
+    );
+    TEST_ASSERT_EQUAL_INT(0, ret);
+
+    char message[] = "Good job putf().";
+    helper_create_local_file("putf.txt", message, sizeof(message) - 1);
+
+    start_request();
+
+    TEST_ASSERT_EQUAL_STRING(message, res_body);
+}
+
+enum vla_handle_code handler_putf_bin(const vla_request *req, void *nul)
+{
+    int ret = vla_putf(req, "putf.txt", 1);
+    TEST_ASSERT_EQUAL_INT(0, ret);
+    return VLA_HANDLE_RESPOND_TERM;
+}
+
+void test_putf_bin()
+{
+    int ret = vla_add_route(
+        ctx,
+        VLA_HTTP_GET, "/response",
+        handler_putf_bin, NULL,
+        NULL
+    );
+    TEST_ASSERT_EQUAL_INT(0, ret);
+
+    char message[] = "Good job putf().";
+    helper_create_local_file("putf.txt", message, sizeof(message) - 1);
+
+    start_request();
+
+    TEST_ASSERT_EQUAL_STRING(message, res_body);
+}
+
 enum vla_handle_code handler_write(const vla_request *req, void *nul)
 {
     int ret = vla_write(req, "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ", 10);
@@ -1700,6 +1763,8 @@ void main()
     RUN_TEST(test_printf);
     RUN_TEST(test_puts);
     RUN_TEST(test_write);
+    RUN_TEST(test_putf);
+    RUN_TEST(test_putf_bin);
     RUN_TEST(test_write_binary);
     RUN_TEST(test_multi_print);
 
