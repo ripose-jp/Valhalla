@@ -104,6 +104,13 @@ fastcgi_param  SERVER_NAME        $server_name;
 
 The public API is documented in the [`valhall.h`](https://github.com/ripose-jp/Valhalla/blob/master/src/include/valhalla.h) header.
 
+## Todo
+
+* Make `vla_putf` use caching. CLOCK-like LRU replacement seems to be the best
+  way to do this.
+* Do more to guarantee thread safety.
+* Fix logging TODOs by adding a logging framework.
+
 ## Why AGPL?
 
 Valhalla was an idea that spun off of another project I wanted to work on.
