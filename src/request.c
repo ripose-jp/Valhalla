@@ -1026,7 +1026,7 @@ enum vla_handle_code vla_request_next_func(const vla_request *req)
     }
 
     /* TODO: Error logging. */
-    return VLA_HANDLE_IGNORE_TERM;
+    return VLA_HANDLE_IGNORE_ACCEPT;
 }
 
 /*
