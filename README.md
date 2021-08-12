@@ -57,7 +57,7 @@ gcc -lvalhalla main.c -o main
 Depending on the webserver you're using, FastCGI programs may have to be started
 explicitly with a program such as [`spawn-fcgi`](https://github.com/lighttpd/spawn-fcgi).
 
-This can with `spawn-fcgi` like this:
+A Valhalla program can be started on port 8000 with `spawn-fcgi` using the command:
 ```
 spawn-fcgi -p 8000 -n main
 ```
