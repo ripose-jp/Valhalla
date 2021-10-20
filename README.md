@@ -66,7 +66,7 @@ spawn-fcgi -p 8000 -n main
 
 ### nginx
 
-If you wanted to run a Valhalla application on port 8000, you would add this to your `server` derective in your `nginx.conf`:
+If you wanted to run a Valhalla application on port 8000, you would add this to your `server` directive in your `nginx.conf`:
 ```
 location / {
     include /etc/nginx/fastcgi.conf;
@@ -102,7 +102,7 @@ fastcgi_param  SERVER_NAME        $server_name;
 
 ## Documentation
 
-The public API is documented in the [`valhall.h`](https://github.com/ripose-jp/Valhalla/blob/master/src/include/valhalla.h) header.
+The public API is documented in the [`valhalla.h`](https://github.com/ripose-jp/Valhalla/blob/master/src/include/valhalla.h) header.
 
 ## Todo
 
@@ -127,7 +127,7 @@ Because of this, I believe AGPL is the perfect way to discourage Valhalla's use
 in serious projects at this time, while still encouraging its use in toy
 projects.
 I believe this is the best way to get user feedback without having to worry
-about maintaing a backwards compatible, public API.
+about maintaining a backwards compatible, public API.
 
 ## Acknowledgments
 
@@ -138,8 +138,8 @@ about maintaing a backwards compatible, public API.
 * Some public domain code by
   [Fred Bulback](https://www.geekhideout.com/urlcode.shtml) used for internal
   URL encoding and decoding.
-* FindFCGI cmake script taken from
+* FindFCGI CMake script taken from
   [Chromium](https://chromium.googlesource.com/external/github.com/uclouvain/openjpeg/+/refs/heads/master/cmake/FindFCGI.cmake).
-* Findtalloc cmake script taken from
+* Findtalloc CMake script taken from
   [hhetter](https://github.com/hhetter/smbtad/blob/master/FindTalloc.cmake).
 * Unit testing done by [Unity](https://github.com/ThrowTheSwitch/Unity).
